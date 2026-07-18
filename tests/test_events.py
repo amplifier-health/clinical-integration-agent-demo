@@ -12,12 +12,12 @@ from clinical_agent.transcribe import Transcriber
 async def test_bus_fanout():
     bus = EventBus()
     q1, q2 = bus.subscribe(), bus.subscribe()
-    await bus.emit("chunk_created", index=1)
+    await bus.emit("chunk_created", patient="p", chunk=1, start_s=0.0, end_s=30.0)
     e1, e2 = q1.get_nowait(), q2.get_nowait()
-    assert e1["type"] == "chunk_created" and e1["index"] == 1 and "ts" in e1
+    assert e1["type"] == "chunk_created" and e1["chunk"] == 1 and "ts" in e1
     assert e2 == e1
     bus.unsubscribe(q1)
-    await bus.emit("x")
+    await bus.emit("chunk_created", patient="p", chunk=2, start_s=30.0, end_s=60.0)
     assert q1.empty() and not q2.empty()
 
 

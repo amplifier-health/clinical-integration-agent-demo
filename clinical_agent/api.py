@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from clinical_agent import contract
 from clinical_agent.amplifier import AmplifierClient
 from clinical_agent.config import Settings
 from clinical_agent.events import EventBus
@@ -42,6 +43,29 @@ def create_app(settings: Settings, store: PatientStore, bus: EventBus,
     @app.get("/patients/{pid}/visits")
     def visits(pid: str):
         return [v.model_dump() for v in store.list_visits(pid)]
+
+    @app.get("/patients/{pid}/visits/{visit}/result")
+    def visit_result(pid: str, visit: int):
+        """The folded snapshot of a visit — the same clinical outputs the stream
+        delivers as deltas, reduced to final state. For late joiners / reconnects /
+        EHR write-back that want the finished visit rather than the live stream."""
+        meta = next((v for v in store.list_visits(pid) if v.number == visit), None)
+        summary = store.read_artifact(pid, visit, "summary") or {}
+        return {
+            "contract_version": contract.CONTRACT_VERSION,
+            "patient_id": pid,
+            "visit": visit,
+            "status": meta.status if meta else "unknown",
+            "signals": store.read_artifact(pid, visit, "signals") or [],
+            "observations": store.read_artifact(pid, visit, "observations") or [],
+            "summary": summary.get("summary"),
+            "vocal_findings": summary.get("vocal_findings", []),
+            "discordance": summary.get("discordance"),
+            "screener_recommendations": summary.get("screener_recommendations", []),
+            "chart_draft": summary.get("chart_update_draft", []),
+            "next_visit_topics": summary.get("next_visit_topics", []),
+            "note": store.read_artifact(pid, visit, "note"),
+        }
 
     @app.get("/events")
     async def events():
