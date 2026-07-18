@@ -9,7 +9,7 @@ chunk (index-aligned) into the cache. After this, run the backend with AMPLIFIER
 Usage:
     .venv/bin/python scripts/prewarm_cache.py \
         --audio /path/to/visit.wav \
-        --results '/path/to/abridge-hackathon-demo-071826/aria_results/v16_c*.json' \
+        --results '/path/to/demo-data/aria_results/v16_c*.json' \
         --data-dir data
 """
 import argparse
@@ -47,7 +47,7 @@ async def main() -> None:
     ap.add_argument("--audio", required=True, help="visit audio — local path or gs:// URI")
     ap.add_argument("--results", required=True,
                     help="that visit's precomputed chunk JSONs — a local glob, or a gs:// wildcard "
-                         "(e.g. 'gs://amplifier-ai-research/abridge-hackathon-demo-071826/aria_results/v16_c*.json')")
+                         "(e.g. 'gs://YOUR_BUCKET/demo-data/aria_results/v16_c*.json')")
     ap.add_argument("--data-dir", type=Path, default=Path("data"))
     ap.add_argument("--use-case", default="aria")
     args = ap.parse_args()

@@ -1,7 +1,7 @@
 """Import the GCS demo dataset (precomputed aria results) into the patient store.
 
-Usage: .venv/bin/python scripts/import_demo_patient.py /path/to/abridge-hackathon-demo-071826 \
-           [--pid 16bbcdbe] [--data-dir data] [--add-live-visit]
+Usage: .venv/bin/python scripts/import_demo_patient.py /path/to/demo-data \
+           [--pid demo-patient] [--data-dir data] [--add-live-visit]
 
 Maps:
   aggregate.json + aria_results/*.json -> data/patients/<pid>/{patient,visits}.json
@@ -111,8 +111,8 @@ def load_appointments(patient_dir: Path | None) -> dict[int, dict]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("src", help="dataset root — local path or gs:// URI (e.g. "
-                                "gs://amplifier-ai-research/abridge-hackathon-demo-071826)")
-    ap.add_argument("--pid", default="16bbcdbe")
+                                "gs://YOUR_BUCKET/demo-data)")
+    ap.add_argument("--pid", default="demo-patient")
     ap.add_argument("--data-dir", type=Path, default=Path("data"))
     ap.add_argument("--patient-dir", default=None,
                     help="patient_<uuid> folder (local or gs://) with per-appointment audio/transcripts")

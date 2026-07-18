@@ -134,7 +134,7 @@ the live agent. **Run the offline demo:** `python3 mock_agent/server.py` then op
 
 No patient data is committed here. The precomputed demo dataset (chart, per-appointment
 audio + transcripts, precomputed `aria` results) lives only in the private bucket
-`gs://amplifier-ai-research/abridge-hackathon-demo-071826`. The importer and cache-prewarm
+`gs://YOUR_BUCKET/demo-data`. The importer and cache-prewarm
 accept `gs://` URIs and fetch on demand with your `gcloud` credentials — so anyone running
 the public repo without access to that bucket cannot obtain the data (the fetch raises and the
 import/prewarm step aborts; the app run without an imported patient just starts with the synthetic
@@ -143,14 +143,14 @@ one). To run the demo on the real patient with **zero live Amplifier calls**:
 ```bash
 # 1) import the patient chart/history + a planned live visit (streams from GCS)
 .venv/bin/python scripts/import_demo_patient.py \
-  gs://amplifier-ai-research/abridge-hackathon-demo-071826 \
-  --patient-dir gs://amplifier-ai-research/abridge-hackathon-demo-071826/patient_16bbcdbe-14d7-488a-a804-c40e3bce975f \
+  gs://YOUR_BUCKET/demo-data \
+  --patient-dir gs://YOUR_BUCKET/demo-data/patient_<PATIENT_ID> \
   --add-live-visit
 
 # 2) prewarm the biomarker cache from the precomputed aria results (no API calls)
 .venv/bin/python scripts/prewarm_cache.py \
-  --audio  gs://amplifier-ai-research/abridge-hackathon-demo-071826/patient_16bbcdbe-14d7-488a-a804-c40e3bce975f/appt_16_.../audio/postdiarized_patient.wav \
-  --results 'gs://amplifier-ai-research/abridge-hackathon-demo-071826/aria_results/v16_c*.json'
+  --audio  gs://YOUR_BUCKET/demo-data/patient_<PATIENT_ID>/appt_16_.../audio/postdiarized_patient.wav \
+  --results 'gs://YOUR_BUCKET/demo-data/aria_results/v16_c*.json'
 
 # 3) run with real Claude reasoning and zero live Amplifier calls
 ANTHROPIC_API_KEY=… AMPLIFIER_OFFLINE=1 SPEED=20 .venv/bin/uvicorn clinical_agent.main:app

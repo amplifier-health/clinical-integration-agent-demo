@@ -275,7 +275,7 @@ let es, chart=null, timer=null, secs=0, sugSeen=new Set(), streaming=false, tokA
 // offline mock server). Override with ?base=http://localhost:8000 to point elsewhere.
 const P = new URLSearchParams(location.search);
 const BASE = P.get('base') || '';
-const PID = P.get('pid') || '16bbcdbe';
+const PID = P.get('pid') || 'demo-patient';
 const AUDIO_PATH = P.get('audio') || '';
 const pauseIcon='<svg class="pz" viewBox="0 0 24 24" fill="var(--coral-2)"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>';
 const dotIcon='<span class="dot"></span>';
