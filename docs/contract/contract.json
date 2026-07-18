@@ -1,0 +1,901 @@
+{
+  "clinical_types": [
+    "chart_draft",
+    "longitudinal_delta",
+    "longitudinal_narrative",
+    "pre_visit_brief",
+    "topics",
+    "trial_match",
+    "visit_note",
+    "visit_summary"
+  ],
+  "contract_version": "1.0",
+  "envelope_fields": [
+    "type",
+    "contract_version",
+    "phase",
+    "session_id",
+    "seq",
+    "ts"
+  ],
+  "events": {
+    "agent_token": {
+      "clinical": false,
+      "phase": "telemetry",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "title": "Agent",
+            "type": "string"
+          },
+          "cached": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cached"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent",
+          "text"
+        ],
+        "title": "AgentToken",
+        "type": "object"
+      }
+    },
+    "agent_tool_call": {
+      "clinical": false,
+      "phase": "reasoning",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "title": "Agent",
+            "type": "string"
+          },
+          "input": {
+            "additionalProperties": true,
+            "title": "Input",
+            "type": "object"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent",
+          "tool",
+          "input"
+        ],
+        "title": "AgentToolCall",
+        "type": "object"
+      }
+    },
+    "api_job_created": {
+      "clinical": false,
+      "phase": "telemetry",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "chunk": {
+            "title": "Chunk",
+            "type": "integer"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Model"
+          },
+          "patient": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Patient"
+          }
+        },
+        "required": [
+          "chunk",
+          "job_id"
+        ],
+        "title": "ApiJobCreated",
+        "type": "object"
+      }
+    },
+    "api_job_result": {
+      "clinical": false,
+      "phase": "telemetry",
+      "schema": {
+        "$defs": {
+          "Signal": {
+            "additionalProperties": false,
+            "properties": {
+              "flagged": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Flagged"
+              },
+              "label": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Label"
+              },
+              "level": {
+                "enum": [
+                  "inconclusive",
+                  "none",
+                  "low",
+                  "consider",
+                  "moderate",
+                  "elevated",
+                  "high"
+                ],
+                "title": "Level",
+                "type": "string"
+              },
+              "model": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Model"
+              },
+              "name": {
+                "title": "Name",
+                "type": "string"
+              },
+              "score": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Score"
+              }
+            },
+            "required": [
+              "name",
+              "level"
+            ],
+            "title": "Signal",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "cached": {
+            "title": "Cached",
+            "type": "boolean"
+          },
+          "chunk": {
+            "title": "Chunk",
+            "type": "integer"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Model"
+          },
+          "offline_miss": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Offline Miss"
+          },
+          "patient": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Patient"
+          },
+          "signals": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/Signal"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Signals"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Summary"
+          }
+        },
+        "required": [
+          "chunk",
+          "cached"
+        ],
+        "title": "ApiJobResult",
+        "type": "object"
+      }
+    },
+    "chart_draft": {
+      "clinical": true,
+      "phase": "post_visit",
+      "schema": {
+        "$defs": {
+          "ChartDraftItem": {
+            "additionalProperties": false,
+            "properties": {
+              "description": {
+                "title": "Description",
+                "type": "string"
+              },
+              "rationale": {
+                "title": "Rationale",
+                "type": "string"
+              }
+            },
+            "required": [
+              "description",
+              "rationale"
+            ],
+            "title": "ChartDraftItem",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/ChartDraftItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "visit": {
+            "title": "Visit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient",
+          "visit",
+          "items"
+        ],
+        "title": "ChartDraft",
+        "type": "object"
+      }
+    },
+    "chunk_created": {
+      "clinical": false,
+      "phase": "telemetry",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "chunk": {
+            "title": "Chunk",
+            "type": "integer"
+          },
+          "end_s": {
+            "title": "End S",
+            "type": "number"
+          },
+          "patient": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Patient"
+          },
+          "start_s": {
+            "title": "Start S",
+            "type": "number"
+          }
+        },
+        "required": [
+          "chunk",
+          "start_s",
+          "end_s"
+        ],
+        "title": "ChunkCreated",
+        "type": "object"
+      }
+    },
+    "error": {
+      "clinical": false,
+      "phase": "lifecycle",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "chunk": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chunk"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "patient": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Patient"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "ErrorEvent",
+        "type": "object"
+      }
+    },
+    "longitudinal_delta": {
+      "clinical": true,
+      "phase": "longitudinal",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "condition": {
+            "title": "Condition",
+            "type": "string"
+          },
+          "first_coded_visit": {
+            "title": "First Coded Visit",
+            "type": "integer"
+          },
+          "first_voice_flag_visit": {
+            "title": "First Voice Flag Visit",
+            "type": "integer"
+          },
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "visits_early": {
+            "title": "Visits Early",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient",
+          "condition",
+          "first_voice_flag_visit",
+          "first_coded_visit",
+          "visits_early"
+        ],
+        "title": "LongitudinalDelta",
+        "type": "object"
+      }
+    },
+    "longitudinal_narrative": {
+      "clinical": true,
+      "phase": "longitudinal",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "patient",
+          "text"
+        ],
+        "title": "LongitudinalNarrative",
+        "type": "object"
+      }
+    },
+    "observation": {
+      "clinical": false,
+      "phase": "reasoning",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "chunk": {
+            "title": "Chunk",
+            "type": "integer"
+          },
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "patient",
+          "chunk",
+          "text"
+        ],
+        "title": "Observation",
+        "type": "object"
+      }
+    },
+    "pre_visit_brief": {
+      "clinical": true,
+      "phase": "pre_visit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "brief": {
+            "title": "Brief",
+            "type": "string"
+          },
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "topics_to_discuss": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Topics To Discuss",
+            "type": "array"
+          },
+          "vocal_trends": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Vocal Trends",
+            "type": "array"
+          }
+        },
+        "required": [
+          "patient",
+          "brief",
+          "vocal_trends",
+          "topics_to_discuss"
+        ],
+        "title": "PreVisitBrief",
+        "type": "object"
+      }
+    },
+    "topics": {
+      "clinical": true,
+      "phase": "post_visit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "visit": {
+            "title": "Visit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient",
+          "visit",
+          "items"
+        ],
+        "title": "Topics",
+        "type": "object"
+      }
+    },
+    "transcript": {
+      "clinical": false,
+      "phase": "telemetry",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "chunk": {
+            "title": "Chunk",
+            "type": "integer"
+          },
+          "patient": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Patient"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chunk",
+          "text"
+        ],
+        "title": "Transcript",
+        "type": "object"
+      }
+    },
+    "trial_match": {
+      "clinical": true,
+      "phase": "post_visit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "eligibility_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Eligibility Hint"
+          },
+          "nct_id": {
+            "title": "Nct Id",
+            "type": "string"
+          },
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "why_relevant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Why Relevant"
+          }
+        },
+        "required": [
+          "patient",
+          "nct_id",
+          "title"
+        ],
+        "title": "TrialMatch",
+        "type": "object"
+      }
+    },
+    "visit_complete": {
+      "clinical": false,
+      "phase": "lifecycle",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "visit": {
+            "title": "Visit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient",
+          "visit"
+        ],
+        "title": "VisitComplete",
+        "type": "object"
+      }
+    },
+    "visit_note": {
+      "clinical": true,
+      "phase": "post_visit",
+      "schema": {
+        "$defs": {
+          "AssessmentItem": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "title": "Code",
+                "type": "string"
+              },
+              "description": {
+                "title": "Description",
+                "type": "string"
+              },
+              "note": {
+                "title": "Note",
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "description",
+              "note"
+            ],
+            "title": "AssessmentItem",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "description": "SOAP visit note (a `documentation` artifact).",
+        "properties": {
+          "assessment": {
+            "items": {
+              "$ref": "#/$defs/AssessmentItem"
+            },
+            "title": "Assessment",
+            "type": "array"
+          },
+          "chief_complaint": {
+            "title": "Chief Complaint",
+            "type": "string"
+          },
+          "objective": {
+            "title": "Objective",
+            "type": "string"
+          },
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "plan": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Plan",
+            "type": "array"
+          },
+          "subjective": {
+            "title": "Subjective",
+            "type": "string"
+          },
+          "visit": {
+            "title": "Visit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient",
+          "visit",
+          "chief_complaint",
+          "subjective",
+          "objective",
+          "assessment",
+          "plan"
+        ],
+        "title": "VisitNote",
+        "type": "object"
+      }
+    },
+    "visit_started": {
+      "clinical": false,
+      "phase": "lifecycle",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "visit": {
+            "title": "Visit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient",
+          "visit",
+          "date",
+          "reason"
+        ],
+        "title": "VisitStarted",
+        "type": "object"
+      }
+    },
+    "visit_summary": {
+      "clinical": true,
+      "phase": "post_visit",
+      "schema": {
+        "$defs": {
+          "VocalFinding": {
+            "additionalProperties": false,
+            "properties": {
+              "level": {
+                "title": "Level",
+                "type": "string"
+              },
+              "note": {
+                "title": "Note",
+                "type": "string"
+              },
+              "sign": {
+                "title": "Sign",
+                "type": "string"
+              }
+            },
+            "required": [
+              "sign",
+              "level",
+              "note"
+            ],
+            "title": "VocalFinding",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "discordance": {
+            "title": "Discordance",
+            "type": "string"
+          },
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "screener_recommendations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Screener Recommendations",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "visit": {
+            "title": "Visit",
+            "type": "integer"
+          },
+          "vocal_findings": {
+            "items": {
+              "$ref": "#/$defs/VocalFinding"
+            },
+            "title": "Vocal Findings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "patient",
+          "visit",
+          "summary",
+          "vocal_findings",
+          "discordance",
+          "screener_recommendations"
+        ],
+        "title": "VisitSummary",
+        "type": "object"
+      }
+    }
+  },
+  "tiers": [
+    "inconclusive",
+    "none",
+    "low",
+    "consider",
+    "moderate",
+    "elevated",
+    "high"
+  ],
+  "wire_format": "flat \u2014 envelope fields and payload fields share the top level"
+}

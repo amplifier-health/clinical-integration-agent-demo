@@ -6,7 +6,7 @@ from clinical_agent.agents import roles
 from clinical_agent.amplifier import AmplifierClient
 from clinical_agent.audio import chunk_file
 from clinical_agent.config import Settings
-from clinical_agent.events import EventBus
+from clinical_agent.events import EventBus, start_session
 from clinical_agent.store import PatientStore
 from clinical_agent.transcribe import Transcriber
 
@@ -29,6 +29,7 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
         if not pick:
             raise ValueError(f"no audio on file for visit {current.number} of patient {pid}")
         audio_path = Path(pick)
+    start_session(patient_id=pid, visit=current.number)
     await bus.emit("visit_started", patient=pid, visit=current.number, date=current.date,
                    reason=current.reason)
 
@@ -115,6 +116,7 @@ async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
         raise ValueError(f"no precomputed chunks for visit {current.number}; run the real "
                          f"pipeline for this visit or import its aria results")
 
+    start_session(patient_id=pid, visit=current.number)
     await bus.emit("visit_started", patient=pid, visit=current.number, date=current.date,
                    reason=current.reason)
     brief = await roles.pre_visit_brief(settings, bus, store, pid, before=current.number)
