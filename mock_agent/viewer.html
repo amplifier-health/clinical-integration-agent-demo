@@ -336,14 +336,19 @@ fetch(BASE+'/patients/'+PID+'/visits').then(r=>r.ok?r.json():[]).then(vs=>{
 
 /* ---- event handling ---- */
 function renderNote(d){  // SOAP note drafted from transcript + the ICD-10 codes coded for this visit
-  if(d.subjective){ const s=document.createElement('div'); s.innerHTML=
-    `<h2>Subjective</h2><p>${d.subjective}</p>`+(d.objective?`<h2>Objective</h2><p>${d.objective}</p>`:'');
+  // Note fields are LLM output derived from the transcript (untrusted) — inject only via textContent.
+  const sect=(parent,heading,body)=>{ const h=document.createElement('h2'); h.textContent=heading;
+    const p=document.createElement('p'); p.textContent=body; parent.append(h,p); };
+  if(d.subjective){ const s=document.createElement('div');
+    sect(s,'Subjective',d.subjective); if(d.objective) sect(s,'Objective',d.objective);
     $('flowMount').appendChild(s); }
   $('asmtHd').style.display='block'; $('asmtHd').textContent='Assessment & plan';
   (d.assessment||[]).forEach(a=>{ const el=document.createElement('div'); el.className='kv';
-    el.innerHTML=`<b>${a.code}</b> ${a.description} — ${a.note}`; $('asmtMount').appendChild(el); });
-  if((d.plan||[]).length){ $('planMount').innerHTML='<h2>Plan</h2>'+
-    d.plan.map(p=>`<div class="kv">• ${p}</div>`).join(''); }
+    const b=document.createElement('b'); b.textContent=a.code;
+    el.append(b, document.createTextNode(` ${a.description} — ${a.note}`)); $('asmtMount').appendChild(el); });
+  if((d.plan||[]).length){ const h=document.createElement('h2'); h.textContent='Plan';
+    $('planMount').append(h); d.plan.forEach(p=>{ const row=document.createElement('div');
+      row.className='kv'; row.textContent='• '+p; $('planMount').append(row); }); }
 }
 const sparkSvg='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l1.4 4L17 8l-3.6 1L12 13l-1.4-4L7 8l3.6-1z"/></svg>';
 function addStep(d){
