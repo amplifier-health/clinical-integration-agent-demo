@@ -15,7 +15,8 @@ from clinical_agent.transcribe import Transcriber
 
 
 class StartVisit(BaseModel):
-    audio_path: str
+    audio_path: str | None = None  # omit to replay the selected appointment's own audio
+    visit: int | None = None       # which appointment to run; default = the planned visit
 
 
 def create_app(settings: Settings, store: PatientStore, bus: EventBus,
@@ -38,6 +39,10 @@ def create_app(settings: Settings, store: PatientStore, bus: EventBus,
     def chart(pid: str):
         return store.chart(pid)
 
+    @app.get("/patients/{pid}/visits")
+    def visits(pid: str):
+        return [v.model_dump() for v in store.list_visits(pid)]
+
     @app.get("/events")
     async def events():
         q = bus.subscribe()
@@ -58,8 +63,9 @@ def create_app(settings: Settings, store: PatientStore, bus: EventBus,
 
         async def job():
             try:
-                await run_visit(settings, bus, store, transcriber, amplifier,
-                                pid, Path(body.audio_path))
+                await run_visit(settings, bus, store, transcriber, amplifier, pid,
+                                Path(body.audio_path) if body.audio_path else None,
+                                visit_number=body.visit)
             except Exception as exc:
                 await bus.emit("error", patient=pid, message=str(exc))
 

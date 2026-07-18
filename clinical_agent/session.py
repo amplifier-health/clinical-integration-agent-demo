@@ -13,20 +13,33 @@ from clinical_agent.transcribe import Transcriber
 
 async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
                     transcriber: Transcriber, amplifier: AmplifierClient,
-                    pid: str, audio_path: Path) -> dict:
+                    pid: str, audio_path: Path | None = None,
+                    visit_number: int | None = None) -> dict:
     visits = store.list_visits(pid)
-    current = next((v for v in visits if v.status == "planned"), None)
+    if visit_number is not None:  # demo toggle: replay any appointment as if it were live
+        current = next((v for v in visits if v.number == visit_number), None)
+    else:
+        current = next((v for v in visits if v.status == "planned"), None)
     if current is None:
-        raise ValueError(f"no planned visit for patient {pid}")
+        raise ValueError(f"no {'visit ' + str(visit_number) if visit_number else 'planned visit'} "
+                         f"for patient {pid}")
+    if audio_path is None:  # resolve the appointment's own audio from its stored artifact
+        audio = store.read_artifact(pid, current.number, "audio") or {}
+        pick = audio.get("postdiarized_patient") or next(iter(audio.values()), None)
+        if not pick:
+            raise ValueError(f"no audio on file for visit {current.number} of patient {pid}")
+        audio_path = Path(pick)
     await bus.emit("visit_started", patient=pid, visit=current.number, date=current.date,
                    reason=current.reason)
 
-    brief = await roles.pre_visit_brief(settings, bus, store, pid)
+    # Prior appointments only — the agent reasons causally from history it could actually have had.
+    brief = await roles.pre_visit_brief(settings, bus, store, pid, before=current.number)
 
     # One conversation for the whole visit — the reasoner (per chunk) and the post-visit agent
     # share this memory, so the final analysis is done by an agent that saw the entire encounter.
     visit_history: list = [{"role": "user", "content":
-        f"VISIT START for patient {pid}. Chart:\n{json.dumps(store.chart(pid))}\n"
+        f"VISIT START for patient {pid}. Chart (prior appointments only):\n"
+        f"{json.dumps(store.chart(pid, before=current.number))}\n"
         f"Pre-visit brief:\n{json.dumps(brief)}\n"
         "Live voice-biomarker ticks and transcript follow as the visit is recorded."}]
 

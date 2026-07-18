@@ -110,9 +110,10 @@ LONGITUDINAL_SCHEMA = {
 }
 
 
-async def pre_visit_brief(settings: Settings, bus: EventBus, store: PatientStore, pid: str) -> dict:
+async def pre_visit_brief(settings: Settings, bus: EventBus, store: PatientStore, pid: str,
+                          before: int | None = None) -> dict:
     agent = ClaudeAgent("previsit", settings, bus)
-    chart = json.dumps(store.chart(pid), indent=1)
+    chart = json.dumps(store.chart(pid, before=before), indent=1)
     text = await agent.run(PREVISIT_SYSTEM, f"Patient chart:\n{chart}", output_schema=PREVISIT_SCHEMA)
     brief = json.loads(text)
     planned = next((v for v in store.list_visits(pid) if v.status == "planned"), None)

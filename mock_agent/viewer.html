@@ -196,6 +196,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
     <div class="sep"></div>
     <div class="rec-state" id="recState"><span class="rec-dot"></span><span id="recLabel">Ready</span></div>
     <div class="spacer"></div>
+    <div class="speed">visit <select id="visitPick" style="padding:5px 7px;border:1px solid var(--line);border-radius:8px;font-family:inherit;background:var(--surface);color:var(--ink);max-width:200px"><option value="">planned (today)</option></select></div>
     <div class="speed">speed <input id="speed" type="number" value="20" min="1" max="80"></div>
     <button class="btn ghost" id="reasonBtn">◐ Agent reasoning</button>
     <button class="btn play" id="playBtn">● Start visit</button>
@@ -323,8 +324,27 @@ function seedNote(){
    <div class="plan" id="planMount"></div>`;
 }
 loadChart();
+// Populate the appointment toggle so any past visit can be replayed with only its prior history.
+fetch(BASE+'/patients/'+PID+'/visits').then(r=>r.ok?r.json():[]).then(vs=>{
+  const sel=$('visitPick'); if(!Array.isArray(vs)||!vs.length) return;
+  vs.forEach(v=>{ if(v.status==='planned') return;
+    const codes=(v.icd10||[]).map(c=>c.code).join(', ');
+    const o=document.createElement('option'); o.value=v.number;
+    o.textContent=`#${v.number} · ${v.date} · ${v.reason}${codes?' ('+codes+')':''}`;
+    sel.appendChild(o); });
+}).catch(()=>{});
 
 /* ---- event handling ---- */
+function renderNote(d){  // SOAP note drafted from transcript + the ICD-10 codes coded for this visit
+  if(d.subjective){ const s=document.createElement('div'); s.innerHTML=
+    `<h2>Subjective</h2><p>${d.subjective}</p>`+(d.objective?`<h2>Objective</h2><p>${d.objective}</p>`:'');
+    $('flowMount').appendChild(s); }
+  $('asmtHd').style.display='block'; $('asmtHd').textContent='Assessment & plan';
+  (d.assessment||[]).forEach(a=>{ const el=document.createElement('div'); el.className='kv';
+    el.innerHTML=`<b>${a.code}</b> ${a.description} — ${a.note}`; $('asmtMount').appendChild(el); });
+  if((d.plan||[]).length){ $('planMount').innerHTML='<h2>Plan</h2>'+
+    d.plan.map(p=>`<div class="kv">• ${p}</div>`).join(''); }
+}
 const sparkSvg='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l1.4 4L17 8l-3.6 1L12 13l-1.4-4L7 8l3.6-1z"/></svg>';
 function addStep(d){
   const log=$('rlog');
@@ -429,6 +449,7 @@ function play(){
   on('agent_token',addToken);
   on('agent_tool_call',d=>{tokAgent=null; addStep({phase:'reason',message:`decision → ${d.tool}(${JSON.stringify(d.input||{}).slice(0,120)})`});});
   on('observation',d=>addObservation(d.text));
+  on('visit_note',renderNote);
   on('visit_summary',addSummary);
   on('chart_draft',addChartDraft);
   on('topics',addNextTopics);
@@ -440,7 +461,7 @@ function play(){
   on('end',()=>{ ended=true; clearInterval(timer); setRecUI('done'); if(es)es.close(); });  // mock server terminator
   // trigger the backend visit (stream-first). No-op for the offline mock server, which replays on connect.
   fetch(BASE+'/patients/'+PID+'/visits/start',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({audio_path:AUDIO_PATH})})
+        body:JSON.stringify({audio_path:AUDIO_PATH||null, visit:$('visitPick').value?Number($('visitPick').value):null})})
     .then(r=>{ if(!r.ok && !BASE) return; if(!r.ok) addStep({phase:'gap',message:'⚠ could not start the visit ('+r.status+') at '+(BASE||location.origin)}); })
     .catch(err=>{ addStep({phase:'gap',message:'⚠ could not reach the backend at '+(BASE||location.origin)+' — '+err}); });
 }

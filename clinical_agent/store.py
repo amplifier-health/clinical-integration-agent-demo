@@ -67,9 +67,13 @@ class PatientStore:
             return None
         return json.loads(path.read_text())
 
-    def chart(self, pid: str) -> dict:
+    def chart(self, pid: str, before: int | None = None) -> dict:
+        """Full chart, or — when `before` is set — only the visits that precede it, so an
+        appointment can be reasoned over with just its prior history as causal context."""
         visits = []
         for v in self.list_visits(pid):
+            if before is not None and v.number >= before:
+                continue
             visits.append({
                 **v.model_dump(),
                 "signals": self.read_artifact(pid, v.number, "signals"),
