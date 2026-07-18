@@ -32,15 +32,22 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         u = urlparse(self.path)
-        if u.path == "/chart":
-            self._send(200, "application/json",
-                       json.dumps({"chart": SCENARIO["chart"], "scenario": SCENARIO["scenario"]}))
+        # backend-shaped endpoints so the viewer speaks one contract everywhere
+        if u.path == "/patients":
+            self._send(200, "application/json", json.dumps([{"id": "demo", "name": SCENARIO["chart"].get("name")}]))
+        elif u.path.startswith("/patients/") and u.path.endswith("/chart"):
+            self._send(200, "application/json", json.dumps(SCENARIO["chart"]))
+        elif u.path == "/chart":  # legacy
+            self._send(200, "application/json", json.dumps({"chart": SCENARIO["chart"]}))
         elif u.path == "/events":
             self.stream(float(parse_qs(u.query).get("speed", ["8"])[0]))
         elif u.path in ("/", "/viewer.html"):
             self._send(200, "text/html", open(os.path.join(HERE, "viewer.html"), "rb").read())
         else:
             self._send(404, "text/plain", "not found")
+
+    def do_POST(self):  # viewer POSTs /patients/{id}/visits/start; the stream replays on GET /events
+        self._send(202, "application/json", json.dumps({"status": "started"}))
 
     def stream(self, speed):
         self.send_response(200)

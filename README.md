@@ -108,22 +108,24 @@ MIT
 
 ---
 
-## Frontend demo UI & standalone components (this branch)
+## Frontend demo UI (this branch)
 
-This branch adds the clinician-facing demo and offline tooling that sit around the backend above.
+An Abridge-style clinician UI that speaks the **same SSE event contract as the backend**
+(`observation`, `api_job_result`, `agent_token`, `visit_summary`, `chart_draft`, `topics`,
+`trial_match`, `longitudinal_delta`, …) — no adapter layer.
 
-- **`mock_agent/viewer.html`** — an Abridge-style UI: mobile recorder (tap-to-record),
-  clinical Note with an ambient flowsheet + voice-informed addenda, an "Ambient AI" panel
-  (care-gap follow-ups + matched clinical trials), and a behind-the-scenes agent-reasoning stream.
-- **`agent/`** — a standalone persistent-conversation Claude agent (low-effort live triage,
-  high-effort post-visit analysis, real ClinicalTrials.gov lookup) + a dependency-free SSE server
-  (`agent/run_agent.py --serve`) that drives the UI from a replayed scenario.
-- **`mock_agent/`** — scenario builders + a stdlib SSE mock server for building the UI without the backend.
-- **`pipeline/`** — chunk audio → score via the Amplifier API → aggregate per visit.
-- **`viz/`** — an interactive per-visit voice-biomarker trajectory dashboard.
+- **`mock_agent/viewer.html`** — the UI: mobile recorder (tap the record button to start a
+  visit), clinical Note with ambient addenda + chart-update drafts, an "Ambient AI" panel
+  (care-gap follow-ups, matched clinical trials, longitudinal early-detection), and a
+  behind-the-scenes agent-reasoning stream. Configurable via query params:
+  `?base=http://localhost:8000` (backend URL), `?pid=<patient>`, `?audio=<path>`.
+- **`mock_agent/server.py`** + `build_scenario_womenshealth.py` — a dependency-free mock that
+  serves the same endpoints (`/patients/{id}/chart`, `/events`) and replays a synthetic,
+  backend-contract scenario, so the UI can be developed and demoed without the backend.
+- **`pipeline/`**, **`viz/`** — offline tools: chunk audio → score via the Amplifier API →
+  aggregate; and an interactive per-visit voice-biomarker trajectory dashboard.
 
-> **Integration note:** the backend (`clinical_agent/`, FastAPI on :8000) and this UI currently use
-> **different SSE event names** — the backend emits `observation` / `api_job_result` / `agent_token` /
-> `visit_summary`, while the UI consumes `topic.suggested` / `biomarker.result` / `reasoning.step` /
-> `note.addendum`. Wiring the UI to the real backend means mapping one contract onto the other (or having
-> the backend emit the UI's events). See `docs/AGENT_FLOW_SPEC.md` for the UI-side contract.
+**Run against the real backend:** start `uvicorn clinical_agent.main:app` (see Quickstart),
+serve `mock_agent/viewer.html` (any static server), open it with `?base=http://localhost:8000`,
+and tap record — the phone triggers `POST /patients/{id}/visits/start` and the panels fill from
+the live agent. **Run the offline demo:** `python3 mock_agent/server.py` then open its URL.

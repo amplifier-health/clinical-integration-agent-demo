@@ -8,440 +8,475 @@
   "problems": [
    "Generalized anxiety disorder (F41.1)",
    "Recurrent depressive episodes (F33)",
-   "Fatigue, unspecified"
+   "Fatigue"
   ],
   "meds": [
    "Sertraline 100 mg daily"
   ],
-  "chief_complaint": "Anxiety follow-up; ongoing fatigue and feeling 'off'.",
-  "prior_gap": "Mentioned irregular periods once in passing \u2014 never worked up."
+  "chief_complaint": "Anxiety follow-up; ongoing fatigue and feeling 'off'."
  },
- "encounter_seconds": 115,
+ "encounter_seconds": 135,
  "events": [
   {
    "t": -2,
-   "type": "briefing",
-   "items": [
-    {
-     "text": "Review anxiety symptom control & sertraline response",
-     "source": "chart"
-    },
-    {
-     "text": "Follow up on persistent fatigue",
-     "source": "chart"
-    },
-    {
-     "text": "Watch: irregular periods mentioned last visit, not worked up",
-     "source": "voice-history"
-    }
+   "type": "pre_visit_brief",
+   "brief": "Anxiety follow-up on sertraline; watch fatigue and a prior unworked-up menstrual complaint.",
+   "topics_to_discuss": [
+    "Review anxiety symptom control & sertraline response",
+    "Follow up on persistent fatigue"
+   ],
+   "vocal_trends": [
+    "Irregular periods mentioned last visit \u2014 never worked up"
    ]
   },
   {
    "t": 2,
-   "type": "transcript.token",
-   "who": "DR",
-   "text": "How have things been since we increased the sertraline?"
+   "type": "transcript",
+   "chunk": 0,
+   "text": "DR: How have things been since we increased the sertraline?"
   },
   {
    "t": 9,
-   "type": "transcript.token",
-   "who": "PT",
-   "text": "The panic is a bit better, but I'm exhausted all the time and just not myself."
+   "type": "transcript",
+   "chunk": 0,
+   "text": "PT: The panic is a bit better, but I'm exhausted all the time and just not myself."
   },
   {
-   "t": 24,
-   "type": "transcript.token",
-   "who": "DR",
-   "text": "Sleep okay? Any change in appetite or mood?"
-  },
-  {
-   "t": 29.5,
-   "type": "reasoning.step",
-   "phase": "score",
-   "message": "chunk 0\u201330s \u2192 POST /v2/models/aria/analyze \u2192 200 (replayed)"
+   "t": 29,
+   "type": "api_job_created",
+   "chunk": 0,
+   "model": "aria",
+   "job_id": "job-0"
   },
   {
    "t": 30,
-   "type": "transcript.token",
-   "who": "PT",
-   "text": "Sleep's rough. I feel low a lot, and honestly kind of foggy."
+   "type": "transcript",
+   "chunk": 2,
+   "text": "PT: Sleep's rough. I feel low a lot, and honestly kind of foggy."
   },
   {
    "t": 30,
-   "type": "biomarker.result",
-   "chunk_id": 0,
-   "t_start": 0,
+   "type": "api_job_result",
+   "chunk": 0,
+   "model": "aria",
    "signals": [
     {
      "name": "anxiety",
      "score": 0.19,
-     "tier": "consider"
+     "level": "consider",
+     "flagged": true
     },
     {
      "name": "mood-disruption",
      "score": 0.17,
-     "tier": "consider"
+     "level": "consider",
+     "flagged": true
     },
     {
      "name": "elevated-androgens",
      "score": 0.08,
-     "tier": "low"
+     "level": "low",
+     "flagged": false
     },
     {
      "name": "fatigue",
      "score": 0.16,
-     "tier": "consider"
+     "level": "consider",
+     "flagged": true
     },
     {
      "name": "iron-deficiency",
      "score": 0.1,
-     "tier": "low"
+     "level": "low",
+     "flagged": false
     }
-   ]
+   ],
+   "summary": {
+    "overall_level": "consider"
+   }
   },
   {
-   "t": 44.5,
-   "type": "reasoning.step",
-   "phase": "score",
-   "message": "chunk 15\u201345s \u2192 POST /v2/models/aria/analyze \u2192 200 (replayed)"
+   "t": 44,
+   "type": "api_job_created",
+   "chunk": 1,
+   "model": "aria",
+   "job_id": "job-1"
   },
   {
    "t": 45,
-   "type": "biomarker.result",
-   "chunk_id": 1,
-   "t_start": 15,
+   "type": "api_job_result",
+   "chunk": 1,
+   "model": "aria",
    "signals": [
     {
      "name": "anxiety",
      "score": 0.28,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "mood-disruption",
      "score": 0.22,
-     "tier": "consider"
+     "level": "consider",
+     "flagged": true
     },
     {
      "name": "elevated-androgens",
      "score": 0.18,
-     "tier": "consider"
+     "level": "consider",
+     "flagged": true
     },
     {
      "name": "fatigue",
      "score": 0.24,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "iron-deficiency",
      "score": 0.13,
-     "tier": "consider"
+     "level": "consider",
+     "flagged": true
     }
-   ]
+   ],
+   "summary": {
+    "overall_level": "moderate"
+   }
   },
   {
    "t": 46,
-   "type": "reasoning.step",
-   "phase": "reason",
-   "message": "anxiety 'moderate' + fatigue \u2191; visit is on-topic \u2192 surface symptom-control check (aligned)"
+   "type": "agent_token",
+   "agent": "reasoner",
+   "text": "Anxiety and mood at moderate \u2014 consistent with the visit's focus; already known. "
   },
   {
    "t": 47,
-   "type": "topic.suggested",
-   "id": "anx",
-   "title": "Anxiety signal elevated \u2014 confirm symptom control",
-   "rationale": "Voice anxiety + mood-disruption at 'moderate' this visit; assess sertraline response.",
-   "source": "voice+chart",
-   "confidence": 0.7,
-   "trend": [
-    0.19,
-    0.28,
-    0.33
-   ]
+   "type": "observation",
+   "chunk": 1,
+   "text": "Anxiety and mood-disruption at moderate, consistent with the anxiety follow-up."
   },
   {
-   "t": 48,
-   "type": "transcript.token",
-   "who": "DR",
-   "text": "Let's talk about coping strategies and whether the dose is right."
-  },
-  {
-   "t": 59.5,
-   "type": "reasoning.step",
-   "phase": "score",
-   "message": "chunk 30\u201360s \u2192 POST /v2/models/aria/analyze \u2192 200 (replayed)"
+   "t": 59,
+   "type": "api_job_created",
+   "chunk": 2,
+   "model": "aria",
+   "job_id": "job-2"
   },
   {
    "t": 60,
-   "type": "biomarker.result",
-   "chunk_id": 2,
-   "t_start": 30,
+   "type": "api_job_result",
+   "chunk": 2,
+   "model": "aria",
    "signals": [
     {
      "name": "anxiety",
      "score": 0.33,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "mood-disruption",
      "score": 0.27,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "elevated-androgens",
      "score": 0.29,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "fatigue",
      "score": 0.3,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "iron-deficiency",
      "score": 0.15,
-     "tier": "consider"
+     "level": "consider",
+     "flagged": true
     }
-   ]
-  },
-  {
-   "t": 61,
-   "type": "reasoning.step",
-   "phase": "reason",
-   "message": "elevated-androgens crossing 'moderate' \u2014 NOT the visit focus; cross-check chart \u2192 no PCOS/menstrual workup on file"
+   ],
+   "summary": {
+    "overall_level": "moderate"
+   }
   },
   {
    "t": 62,
-   "type": "transcript.token",
-   "who": "PT",
-   "text": "Work stress is a huge trigger. I've had a couple of bad weeks."
+   "type": "transcript",
+   "chunk": 4,
+   "text": "PT: Work stress is a huge trigger. I've had a couple of bad weeks."
   },
   {
    "t": 62,
-   "type": "topic.suggested",
-   "id": "androgen",
-   "title": "Voice signal: elevated androgen-associated features",
-   "rationale": "Rising androgen-associated vocal profile (low\u2192moderate\u2192elevated). Consider asking about menstrual regularity, hair/skin changes.",
-   "source": "voice",
-   "confidence": 0.68,
-   "trend": [
-    0.08,
-    0.18,
-    0.29,
-    0.38
-   ]
+   "type": "agent_token",
+   "agent": "reasoner",
+   "text": "Elevated-androgens crossing moderate and NOT the visit focus; chart shows no PCOS workup. "
   },
   {
-   "t": 74.5,
-   "type": "reasoning.step",
-   "phase": "score",
-   "message": "chunk 45\u201375s \u2192 POST /v2/models/aria/analyze \u2192 200 (replayed)"
+   "t": 63,
+   "type": "observation",
+   "chunk": 2,
+   "text": "Elevated androgen-associated vocal features are rising and are not the focus of this visit \u2014 consider asking about menstrual regularity and hair/skin changes."
+  },
+  {
+   "t": 74,
+   "type": "api_job_created",
+   "chunk": 3,
+   "model": "aria",
+   "job_id": "job-3"
   },
   {
    "t": 75,
-   "type": "biomarker.result",
-   "chunk_id": 3,
-   "t_start": 45,
+   "type": "api_job_result",
+   "chunk": 3,
+   "model": "aria",
    "signals": [
     {
      "name": "anxiety",
      "score": 0.31,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "mood-disruption",
      "score": 0.29,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "elevated-androgens",
      "score": 0.38,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "fatigue",
      "score": 0.33,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "iron-deficiency",
      "score": 0.18,
-     "tier": "consider"
+     "level": "consider",
+     "flagged": true
     }
-   ]
-  },
-  {
-   "t": 82,
-   "type": "transcript.token",
-   "who": "PT",
-   "text": "Oh \u2014 and my periods have been all over the place, but that's probably the stress."
-  },
-  {
-   "t": 84,
-   "type": "reasoning.step",
-   "phase": "reason",
-   "message": "patient volunteers irregular periods but attributes to stress; androgen signal corroborates \u2192 strengthen for post-visit"
-  },
-  {
-   "t": 86,
-   "type": "flowsheet.update",
-   "section": "Endocrine / Voice",
-   "row": "Androgen-associated vocal profile",
-   "value": "Elevated",
-   "provenance": {
-    "quote": "periods have been all over the place",
-    "t": 82
+   ],
+   "summary": {
+    "overall_level": "moderate"
    }
   },
   {
-   "t": 89.5,
-   "type": "reasoning.step",
-   "phase": "score",
-   "message": "chunk 60\u201390s \u2192 POST /v2/models/aria/analyze \u2192 200 (replayed)"
+   "t": 82,
+   "type": "transcript",
+   "chunk": 5,
+   "text": "PT: Oh \u2014 and my periods have been all over the place, but that's probably the stress."
+  },
+  {
+   "t": 84,
+   "type": "observation",
+   "chunk": 4,
+   "text": "Patient volunteered irregular periods; the androgen signal corroborates. Worth an endocrine screen."
+  },
+  {
+   "t": 89,
+   "type": "api_job_created",
+   "chunk": 4,
+   "model": "aria",
+   "job_id": "job-4"
   },
   {
    "t": 90,
-   "type": "biomarker.result",
-   "chunk_id": 4,
-   "t_start": 60,
+   "type": "api_job_result",
+   "chunk": 4,
+   "model": "aria",
    "signals": [
     {
      "name": "anxiety",
      "score": 0.35,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "mood-disruption",
      "score": 0.3,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "elevated-androgens",
      "score": 0.46,
-     "tier": "elevated"
+     "level": "elevated",
+     "flagged": true
     },
     {
      "name": "fatigue",
      "score": 0.35,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "iron-deficiency",
      "score": 0.2,
-     "tier": "consider"
+     "level": "consider",
+     "flagged": true
     }
-   ]
+   ],
+   "summary": {
+    "overall_level": "elevated"
+   }
   },
   {
    "t": 100,
-   "type": "transcript.token",
-   "who": "DR",
-   "text": "We'll keep the dose and add a therapy referral. Let's recheck in a month."
+   "type": "transcript",
+   "chunk": 6,
+   "text": "DR: We'll keep the dose and add a therapy referral. Let's recheck in a month."
   },
   {
-   "t": 104.5,
-   "type": "reasoning.step",
-   "phase": "score",
-   "message": "chunk 75\u2013105s \u2192 POST /v2/models/aria/analyze \u2192 200 (replayed)"
+   "t": 104,
+   "type": "api_job_created",
+   "chunk": 5,
+   "model": "aria",
+   "job_id": "job-5"
   },
   {
    "t": 105,
-   "type": "biomarker.result",
-   "chunk_id": 5,
-   "t_start": 75,
+   "type": "api_job_result",
+   "chunk": 5,
+   "model": "aria",
    "signals": [
     {
      "name": "anxiety",
      "score": 0.3,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "mood-disruption",
      "score": 0.28,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "elevated-androgens",
      "score": 0.43,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "fatigue",
      "score": 0.32,
-     "tier": "moderate"
+     "level": "moderate",
+     "flagged": true
     },
     {
      "name": "iron-deficiency",
      "score": 0.19,
-     "tier": "consider"
+     "level": "consider",
+     "flagged": true
     }
-   ]
+   ],
+   "summary": {
+    "overall_level": "moderate"
+   }
   },
   {
    "t": 116,
-   "type": "reasoning.step",
-   "phase": "post",
-   "message": "Aggregating full-visit trajectory across 6 chunks\u2026"
+   "type": "agent_token",
+   "agent": "postvisit",
+   "text": "Aggregating the visit: anxiety on-topic; elevated-androgens the incidental, undiscussed signal. "
   },
   {
    "t": 118,
-   "type": "note.addendum",
-   "section": "Assessment",
-   "text": "Voice analysis: anxiety and mood-disruption 'moderate', consistent with presentation. Incidental \u2014 elevated androgen-associated vocal profile peaked 'elevated'; patient reports menstrual irregularity.",
-   "citations": [
+   "type": "visit_summary",
+   "patient": "demo",
+   "visit": 1,
+   "summary": "Anxiety follow-up: since the sertraline increase, panic is somewhat improved but the patient reports persistent fatigue and low mood. Continue current management with a therapy referral.",
+   "vocal_findings": [
     {
-     "quote": "periods have been all over the place",
-     "t": 82
+     "sign": "elevated-androgens",
+     "level": "elevated",
+     "note": "Androgen-associated vocal profile peaked 'elevated' this visit; incidental to the anxiety focus."
+    },
+    {
+     "sign": "anxiety",
+     "level": "moderate",
+     "note": "Consistent with the presenting complaint."
     }
+   ],
+   "discordance": "The visit centered on anxiety, but the strongest rising voice signal (androgen-associated) went unaddressed.",
+   "screener_recommendations": [
+    "GAD-7",
+    "PHQ-9"
    ]
   },
   {
    "t": 120,
-   "type": "followup.item",
-   "text": "Continue sertraline; therapy referral placed; recheck anxiety in 1 month",
-   "why": "Visit focus, addressed",
-   "discussed": true
+   "type": "chart_draft",
+   "patient": "demo",
+   "visit": 1,
+   "items": [
+    {
+     "description": "Add problem: fatigue, evaluate",
+     "rationale": "Persistent, patient-reported; supported by voice fatigue signal."
+    }
+   ]
   },
   {
    "t": 122,
-   "type": "reasoning.step",
-   "phase": "gap",
-   "message": "GAP: elevated-androgens reached 'elevated' + reported oligomenorrhea, but no PCOS workup was ordered"
+   "type": "agent_tool_call",
+   "agent": "postvisit",
+   "tool": "search_clinical_trials",
+   "input": {
+    "condition": "PCOS anxiety"
+   }
   },
   {
    "t": 123,
-   "type": "followup.item",
-   "text": "PCOS workup next visit: menstrual history, free testosterone / SHBG, consider pelvic ultrasound",
-   "why": "Voice androgen signal 'elevated' + irregular periods; not worked up today (or previously)",
-   "discussed": false
-  },
-  {
-   "t": 126,
-   "type": "reasoning.step",
-   "phase": "trials",
-   "message": "Querying Clinical Trials MCP: PCOS / hyperandrogenism with comorbid anxiety-depression (the undiscussed gap)\u2026"
+   "type": "topics",
+   "patient": "demo",
+   "visit": 1,
+   "items": [
+    "PCOS workup: menstrual history, free testosterone / SHBG, consider pelvic ultrasound",
+    "Reassess fatigue; check CBC / ferritin"
+   ]
   },
   {
    "t": 129,
-   "type": "trial.match",
-   "nct_id": "NCTXXXXXXX1",
-   "title": "Metabolic and mental-health outcomes in PCOS with comorbid anxiety/depression",
+   "type": "trial_match",
+   "patient": "demo",
+   "nct_id": "NCT05123456",
+   "title": "Metabolic and mental-health outcomes in PCOS with comorbid anxiety",
    "why_relevant": "Targets the exact overlap surfaced but not addressed: androgen excess + mood symptoms.",
    "eligibility_hint": "Reproductive-age women, PCOS features, mood symptoms"
   },
   {
    "t": 131,
-   "type": "trial.match",
-   "nct_id": "NCTXXXXXXX2",
+   "type": "trial_match",
+   "patient": "demo",
+   "nct_id": "NCT04987654",
    "title": "Anti-androgen vs combined oral contraceptive for hyperandrogenism",
-   "why_relevant": "If PCOS workup confirms hyperandrogenism, relevant treatment-comparison trial.",
+   "why_relevant": "If PCOS workup confirms hyperandrogenism, a relevant treatment-comparison trial.",
    "eligibility_hint": "Confirmed hyperandrogenism, age 18\u201340"
   },
   {
    "t": 133,
-   "type": "reasoning.step",
-   "phase": "done",
-   "message": "Encounter processed. 2 topics surfaced live \u00b7 1 gap (PCOS) \u00b7 2 trials."
+   "type": "longitudinal_delta",
+   "patient": "demo",
+   "condition": "PCOS / hyperandrogenism",
+   "first_voice_flag_visit": 1,
+   "first_coded_visit": 4,
+   "visits_early": 3
+  },
+  {
+   "t": 135,
+   "type": "visit_complete",
+   "patient": "demo",
+   "visit": 1
   }
  ],
- "note": "SYNTHETIC \u2014 fictional patient, illustrative only."
+ "note": "SYNTHETIC \u2014 fictional patient; backend event contract."
 }

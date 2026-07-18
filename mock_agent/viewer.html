@@ -270,7 +270,13 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 <script>
 const $=id=>document.getElementById(id);
 const SEED_HPI = c => `${c.name} is a ${c.age}-year-old ${c.sex==='F'?'woman':c.sex==='M'?'man':'patient'} with a history of ${(c.problems||[]).join(', ').toLowerCase()||'—'}, on ${(c.meds||[]).join(', ')||'no daily medications'}, presenting for ${(c.chief_complaint||'follow-up').toLowerCase().replace(/\\.$/,'')}. The encounter is being recorded and ambiently analyzed; voice-biomarker signals are surfaced as considerations, not diagnoses.`;
-let es, chart=null, timer=null, secs=0, sugSeen=new Set(), streaming=false;
+let es, chart=null, timer=null, secs=0, sugSeen=new Set(), streaming=false, tokAgent=null, tokBuf=null;
+// Backend base URL: default same-origin (works when served by the backend on :8000 or the
+// offline mock server). Override with ?base=http://localhost:8000 to point elsewhere.
+const P = new URLSearchParams(location.search);
+const BASE = P.get('base') || '';
+const PID = P.get('pid') || '16bbcdbe';
+const AUDIO_PATH = P.get('audio') || '';
 const pauseIcon='<svg class="pz" viewBox="0 0 24 24" fill="var(--coral-2)"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>';
 const dotIcon='<span class="dot"></span>';
 function setRecUI(state){ // 'recording' | 'done'
@@ -289,13 +295,16 @@ function setRecUI(state){ // 'recording' | 'done'
 function stopVisit(){ if(es)es.close(); clearInterval(timer); setRecUI('done'); }
 
 async function loadChart(){
-  try{const d=await(await fetch('/chart')).json();chart=d.chart;
-    const init=(chart.name||'?').split(' ').map(x=>x[0]).slice(0,2).join('');
+  try{
+    const raw=await(await fetch(BASE+'/patients/'+PID+'/chart')).json();
+    chart=raw.chart||raw;  // backend returns the chart directly; mock wraps in {chart}
+    chart.name=chart.name||PID; chart.problems=chart.problems||[]; chart.meds=chart.meds||[];
+    const init=(chart.name||'?').split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase();
     $('mName').textContent=chart.name; $('mMrn').textContent='MRN '+(chart.mrn||'—'); $('mAv').textContent=init;
     $('nName').textContent=chart.name; $('nMrn').textContent='MRN '+(chart.mrn||'—'); $('nAv').textContent=init;
     $('aiPt').textContent=chart.name.split(' ')[0]+' · current encounter';
     seedNote();
-  }catch(e){}
+  }catch(e){ chart={name:PID,problems:[],meds:[]}; seedNote(); }
 }
 function seedNote(){
   $('noteBody').innerHTML=`
@@ -365,29 +374,67 @@ function addTrial(d){
 }
 function tickTimer(){secs++;const m=Math.floor(secs/60),s=secs%60;$('mTimer').textContent=`${m}:${s<10?'0':''}${s}`;}
 
+/* ---- backend-event adapters (map the backend contract onto the UI panels) ---- */
+function addToken(d){ // streamed Claude output → grouped block in the reasoning tab
+  if(tokAgent!==d.agent||!tokBuf){ tokBuf=document.createElement('div'); tokBuf.className='rstep';
+    tokBuf.innerHTML=`<span class="ph ph-reason">${d.agent||'agent'}</span><span class="msg"></span>`;
+    $('rlog').appendChild(tokBuf); tokAgent=d.agent; }
+  tokBuf.querySelector('.msg').textContent+=d.text||'';
+  $('rlog').scrollTop=1e9; $('opener').classList.add('pinging');
+}
+function addObservation(text){ // live per-chunk reasoner output → mobile suggested topic
+  tokAgent=null; const t=(text||'').trim(); if(!t)return;
+  if(/^(nothing|no notable|none|not notable|no new|unremarkable)/i.test(t)){ addStep({phase:'reason',message:'observation: '+t}); return; }
+  const m=t.match(/^(.*?[.!?])\s+(.*)$/); const title=(m?m[1]:t).slice(0,96); const rest=m?m[2]:'';
+  addTopic({title,rationale:rest,source:'voice'});
+}
+function addSummary(d){
+  addAddendum({section:'Assessment',text:d.summary||''});
+  (d.vocal_findings||[]).forEach(v=>addAddendum({section:'Vocal finding',text:`${v.sign} — ${v.level}: ${v.note}`}));
+  if(d.discordance && !/^\s*none/i.test(d.discordance)) addAddendum({section:'Voice–words discordance',text:d.discordance});
+  (d.screener_recommendations||[]).forEach(s=>addFollow({text:s,why:'Recommended screener',discussed:true}));
+}
+function addChartDraft(d){ (d.items||[]).forEach(it=>addAddendum({section:'Chart update · draft',text:`${it.description}${it.rationale?' — '+it.rationale:''}`})); }
+function addNextTopics(d){ (d.items||[]).forEach(t=>addFollow({text:t,why:'To raise at the next visit',discussed:false})); }
+function addLong(d){ const em=$('aiEmpty'); if(em)em.remove();
+  const el=document.createElement('div');el.className='trial';
+  el.innerHTML=`<div class="top"><span class="nct" style="background:#e7f0ea;color:#2f7d54;border-color:#bfe0cc">early detection</span></div>`+
+    `<div class="ttl">${d.condition}</div><div class="why">Voice flagged at visit ${d.first_voice_flag_visit}; first coded at visit ${d.first_coded_visit} — <b>${d.visits_early} visits earlier</b>.</div>`;
+  $('aiBody').appendChild(el); }
+
 function play(){
-  if(es)es.close();
-  ['sugList'].forEach(()=>{}); sugSeen.clear();
+  if(es)es.close(); sugSeen.clear(); tokAgent=null;
   $('sugList').innerHTML='<div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div><div class="s">Analyzing the conversation</div></div></div>';
   $('aiBody').innerHTML='';$('rlog').innerHTML='';seedNote();
   secs=0;$('mTimer').textContent='0:00';clearInterval(timer);timer=setInterval(tickTimer,1000);
   setRecUI('recording');
   const on=(t,f)=>es.addEventListener(t,e=>{try{f(JSON.parse(e.data))}catch(_){}});
-  es=new EventSource('/events?speed='+$('speed').value);
-  on('briefing',d=>addBriefing(d.items||[]));
-  on('reasoning.step',addStep);
-  on('biomarker.result',d=>{
-    const log=$('rlog');const el=document.createElement('div');el.className='rbio';
-    el.innerHTML=d.signals.map(s=>`${s.name} <b>${(+s.score).toFixed(2)}</b>`).join(' · ');
+  const qs = BASE.includes(':8000') ? '' : '?speed='+$('speed').value;  // backend uses env SPEED; mock uses ?speed
+  es=new EventSource(BASE+'/events'+qs);
+  on('visit_started',()=>{$('recLabel').textContent='Recording · analyzing';});
+  on('pre_visit_brief',d=>addBriefing([
+    ...(d.topics_to_discuss||[]).map(t=>({text:t,source:'chart'})),
+    ...(d.vocal_trends||[]).map(t=>({text:t,source:'voice-history'}))]));
+  on('transcript',d=>addStep({phase:'reason',message:'heard: '+(d.text||'')}));
+  on('api_job_created',d=>addStep({phase:'score',message:`chunk ${d.chunk} → POST /v2/models/${d.model||'aria'}/analyze → job ${d.job_id||''}`}));
+  on('api_job_result',d=>{ tokAgent=null; const log=$('rlog');const el=document.createElement('div');el.className='rbio';
+    el.innerHTML=(d.signals||[]).map(s=>`${s.name} <b>${(+(s.score||0)).toFixed(2)}</b>`).join(' · ')||'(no conclusive signals)';
     log.appendChild(el);log.scrollTop=1e9;});
-  on('topic.suggested',addTopic);
-  on('flowsheet.update',addFlow);
-  on('note.addendum',addAddendum);
-  on('followup.item',addFollow);
-  on('trial.match',addTrial);
-  on('reasoning.step',d=>{ // update memory counter from the cycle marker
-    const m=/(\\d+) prior messages/.exec(d.message||'');if(m)$('mem').textContent='memory: '+m[1]+' msgs';});
-  on('end',()=>{ clearInterval(timer); setRecUI('done'); if(es)es.close(); });
+  on('agent_token',addToken);
+  on('agent_tool_call',d=>{tokAgent=null; addStep({phase:'reason',message:`decision → ${d.tool}(${JSON.stringify(d.input||{}).slice(0,120)})`});});
+  on('observation',d=>addObservation(d.text));
+  on('visit_summary',addSummary);
+  on('chart_draft',addChartDraft);
+  on('topics',addNextTopics);
+  on('trial_match',addTrial);
+  on('longitudinal_delta',addLong);
+  on('longitudinal_narrative',d=>addStep({phase:'post',message:d.text||''}));
+  on('error',d=>addStep({phase:'gap',message:'error: '+(d.message||'')}));
+  on('visit_complete',()=>{ clearInterval(timer); setRecUI('done'); if(es)es.close(); });
+  on('end',()=>{ clearInterval(timer); setRecUI('done'); if(es)es.close(); });  // mock server terminator
+  // trigger the backend visit (stream-first). No-op for the offline mock server, which replays on connect.
+  fetch(BASE+'/patients/'+PID+'/visits/start',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({audio_path:AUDIO_PATH})}).catch(()=>{});
 }
 // build waveform bars + initial record button
 $('wave').innerHTML=Array.from({length:34},()=>'<i></i>').join('');
