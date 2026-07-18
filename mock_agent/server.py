@@ -37,6 +37,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, "application/json", json.dumps([{"id": "demo", "name": SCENARIO["chart"].get("name")}]))
         elif u.path.startswith("/patients/") and u.path.endswith("/chart"):
             self._send(200, "application/json", json.dumps(SCENARIO["chart"]))
+        elif u.path.startswith("/patients/") and u.path.endswith("/visits"):
+            self._send(200, "application/json", json.dumps(SCENARIO.get("visits", [])))
         elif u.path == "/chart":  # legacy
             self._send(200, "application/json", json.dumps({"chart": SCENARIO["chart"]}))
         elif u.path == "/events":

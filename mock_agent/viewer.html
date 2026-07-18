@@ -324,15 +324,23 @@ function seedNote(){
    <div class="plan" id="planMount"></div>`;
 }
 loadChart();
-// Populate the appointment toggle so any past visit can be replayed with only its prior history.
-fetch(BASE+'/patients/'+PID+'/visits').then(r=>r.ok?r.json():[]).then(vs=>{
-  const sel=$('visitPick'); if(!Array.isArray(vs)||!vs.length) return;
-  vs.forEach(v=>{ if(v.status==='planned') return;
-    const codes=(v.icd10||[]).map(c=>c.code).join(', ');
-    const o=document.createElement('option'); o.value=v.number;
-    o.textContent=`#${v.number} · ${v.date} · ${v.reason}${codes?' ('+codes+')':''}`;
-    sel.appendChild(o); });
-}).catch(()=>{});
+// Populate the appointment toggle so any appointment can be replayed with only its prior history.
+fetch(BASE+'/patients/'+PID+'/visits')
+  .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(vs=>{
+    const sel=$('visitPick'); if(!Array.isArray(vs)||!vs.length) return;
+    sel.innerHTML='';  // replace the placeholder once we actually have visits
+    vs.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(v=>{
+      const codes=(v.icd10||[]).map(c=>c.code).join(', ');
+      const planned=v.status==='planned';
+      const o=document.createElement('option'); o.value=planned?'':v.number;
+      o.textContent=`${v.date||'—'} · ${v.reason||('visit '+v.number)}${codes?' ('+codes+')':''}${planned?' — today':''}`;
+      sel.appendChild(o);
+    });
+  })
+  .catch(e=>{ console.warn('could not load visits for '+PID+' at '+(BASE||location.origin)+':',e.message);
+    const o=document.createElement('option'); o.disabled=true;
+    o.textContent='(no visits — import the patient / check base & pid)'; $('visitPick').appendChild(o); });
 
 /* ---- event handling ---- */
 function renderNote(d){  // SOAP note drafted from transcript + the ICD-10 codes coded for this visit
