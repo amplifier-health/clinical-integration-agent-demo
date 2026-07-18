@@ -1,0 +1,29 @@
+[project]
+name = "clinical-integration-agent"
+version = "0.1.0"
+description = "Voice biomarker clinical agent demo (Amplifier Health x Abridge hackathon)"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+    "anthropic>=0.40",
+    "pydantic>=2.7",
+    "faster-whisper>=1.0",
+    "pydub>=0.25",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "respx>=0.21"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["clinical_agent", "clinical_agent.agents"]
