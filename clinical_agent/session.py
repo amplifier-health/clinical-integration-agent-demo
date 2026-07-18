@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 from pathlib import Path
 
 from clinical_agent.agents import roles
@@ -96,6 +97,21 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
 
 
 _TIER_FLAGGED = {"consider", "moderate", "elevated", "high"}
+_SEG_RE = re.compile(r"\s*([\d.]+)-([\d.]+)\s+\[([^\]]+)\]:\s*(.*)")
+
+
+def _timed_segments(transcript) -> list[tuple[float, str, str]]:
+    """Parse diarized transcript turns (`"12.3-15.0 [SPEAKER_01]: words"` lines) into a single
+    time-ordered list of (start_s, speaker, text) so the demo can pretend-stream them like live ASR."""
+    segs: list[tuple[float, str, str]] = []
+    for turn in transcript or []:
+        speaker = turn.get("speaker", "?")
+        for line in (turn.get("text") or "").splitlines():
+            m = _SEG_RE.match(line)
+            if m:
+                segs.append((float(m.group(1)), speaker, m.group(4).strip()))
+    segs.sort(key=lambda s: s[0])
+    return segs
 
 
 async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
@@ -124,13 +140,32 @@ async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
         f"Pre-visit brief:\n{json.dumps(brief)}\n"
         "Precomputed voice-biomarker ticks follow as the visit is replayed."}]
 
+    # Pretend-stream the transcript we already have, time-aligned — standing in for the live ASR
+    # we'd run on the scribe's audio stream in the real scenario.
+    transcript = store.read_artifact(pid, current.number, "transcript")
+    segments = _timed_segments(transcript)
+    seg_ptr = 0
+    heard: list = []
+
     pace = 15.0 / max(settings.speed, 1.0)  # ~15s of audio per hop, compressed by SPEED
     signals_by_chunk: dict = {}
     observations: list = []
     for ch in sorted(chunks, key=lambda c: c["chunk"]):
         idx = ch["chunk"]
+        win_end = (ch.get("start", 0.0) or 0.0) + 30.0
         await bus.emit("chunk_created", patient=pid, chunk=idx,
-                       start_s=ch.get("start", 0.0), end_s=(ch.get("start", 0.0) or 0.0) + 30.0)
+                       start_s=ch.get("start", 0.0), end_s=win_end)
+        # reveal the transcript that "arrived" during this window
+        new_parts = []
+        while seg_ptr < len(segments) and segments[seg_ptr][0] < win_end:
+            _, spk, txt = segments[seg_ptr]
+            if txt:
+                new_parts.append(f"{spk}: {txt}")
+            seg_ptr += 1
+        new_text = " ".join(new_parts)
+        if new_text:
+            heard.append(new_text)
+            await bus.emit("transcript", patient=pid, chunk=idx, text=new_text)
         sigs = [{"name": n, "score": s.get("score"), "level": s.get("level"),
                  "flagged": s.get("level") in _TIER_FLAGGED}
                 for n, s in (ch.get("signals") or {}).items()]
@@ -141,7 +176,7 @@ async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
         signals_by_chunk[idx] = sigs
         cumulative = [s for n in sorted(signals_by_chunk) for s in signals_by_chunk[n]]
         try:
-            obs = await roles.reason_over_chunk(settings, bus, store, pid, idx, "", cumulative,
+            obs = await roles.reason_over_chunk(settings, bus, store, pid, idx, new_text, cumulative,
                                                 brief, history=visit_history)
             observations.append(obs)
         except Exception as exc:  # keep the replay alive if a single reasoning tick fails
@@ -153,9 +188,8 @@ async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
     store.write_artifact(pid, current.number, "signals", signals_by_chunk[ordered[-1]] if ordered else [])
     store.write_artifact(pid, current.number, "observations", observations)
 
-    transcript = store.read_artifact(pid, current.number, "transcript")
     summary = await roles.post_visit_summary(settings, bus, store, pid, current.number,
-                                             [roles._transcript_text(transcript)], all_signals,
+                                             heard or [roles._transcript_text(transcript)], all_signals,
                                              observations, brief, history=visit_history)
     await roles.build_visit_note(settings, bus, store, pid, current.number,
                                  transcript, current.icd10, all_signals, history=visit_history)
