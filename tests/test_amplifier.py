@@ -11,9 +11,9 @@ from clinical_agent.events import EventBus
 BASE = "https://api.test"
 
 
-def make_client(tmp_path, cache="off"):
+def make_client(tmp_path, cache="off", use_cases=("haven",)):
     s = Settings(amplifier_base_url=BASE, amplifier_account_id="acct", amplifier_api_key="key",
-                 amplifier_cache=cache)
+                 amplifier_cache=cache, amplifier_use_cases=list(use_cases))
     return AmplifierClient(s, EventBus(), cache_dir=tmp_path / "cache")
 
 

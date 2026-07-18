@@ -64,7 +64,9 @@ class AmplifierClient:
 
     # -- cache ---------------------------------------------------------
     def _cache_path(self, chunk: AudioChunk) -> Path:
-        return self.cache_dir / f"{hashlib.sha256(chunk.wav_bytes).hexdigest()}.json"
+        # key on audio + the set of models scored, so changing use-cases doesn't collide
+        models = "+".join(self.s.amplifier_use_cases)
+        return self.cache_dir / f"{hashlib.sha256(chunk.wav_bytes).hexdigest()}-{models}.json"
 
     def _cache_read(self, chunk: AudioChunk):
         p = self._cache_path(chunk)
@@ -75,6 +77,31 @@ class AmplifierClient:
         self._cache_path(chunk).write_text(json.dumps(result, indent=2))
 
     # -- API flow ------------------------------------------------------
+    @staticmethod
+    def _merge(results: dict[str, dict]) -> dict:
+        """One use-case → its result unchanged. Many → signals merged (tagged with model)."""
+        if len(results) == 1:
+            return next(iter(results.values()))
+        signals = [{**s, "model": uc} for uc, res in results.items() for s in (res.get("signals") or [])]
+        return {"signals": signals, "by_model": {uc: r.get("summary") for uc, r in results.items()}}
+
+    async def _analyze_one(self, http: httpx.AsyncClient, upload_ref: str, model: str, chunk_index: int) -> dict:
+        # NB: analyze expects form encoding, not JSON (verified against the live API)
+        job = (await self._request(http, "POST", f"{self.s.amplifier_base_url}/v2/models/{model}/analyze",
+                                   self.limiter, data={"audio_upload_ref": upload_ref},
+                                   headers=self._auth)).json()
+        job_id = job.get("id") or job.get("job_id")
+        await self.bus.emit("api_job_created", chunk=chunk_index, model=model, job_id=job_id)
+        while True:
+            status = (await self._request(http, "GET", f"{self.s.amplifier_base_url}/v2/jobs/{job_id}",
+                                          self.general_limiter, headers=self._auth)).json()
+            state = str(status.get("status", "")).lower()
+            if state in _DONE:
+                return status["result"]
+            if state in _FAILED:
+                raise RuntimeError(f"Amplifier job {job_id} ({model}) failed: {status}")
+            await asyncio.sleep(self.poll_interval)
+
     async def analyze(self, chunk: AudioChunk) -> dict:
         if self.s.amplifier_cache == "warm":
             cached = self._cache_read(chunk)
@@ -88,24 +115,13 @@ class AmplifierClient:
                                       headers=self._auth)).json()
             (await http.put(up["upload_url"], content=chunk.wav_bytes,
                             headers=up.get("required_headers", {}))).raise_for_status()
-            # NB: analyze expects form encoding, not JSON (verified against the live API)
-            job = (await self._request(http, "POST", f"{self.s.amplifier_base_url}/v2/models/haven/analyze",
-                                       self.limiter, data={"audio_upload_ref": up["upload_ref"]},
-                                       headers=self._auth)).json()
-            job_id = job.get("id") or job.get("job_id")
-            await self.bus.emit("api_job_created", chunk=chunk.index, job_id=job_id)
-            while True:
-                status = (await self._request(http, "GET", f"{self.s.amplifier_base_url}/v2/jobs/{job_id}",
-                                              self.general_limiter, headers=self._auth)).json()
-                state = str(status.get("status", "")).lower()
-                if state in _DONE:
-                    result = status["result"]
-                    break
-                if state in _FAILED:
-                    raise RuntimeError(f"Amplifier job {job_id} failed: {status}")
-                await asyncio.sleep(self.poll_interval)
+            results: dict[str, dict] = {}
+            for model in self.s.amplifier_use_cases:  # score the same upload against each use-case
+                res = await self._analyze_one(http, up["upload_ref"], model, chunk.index)
+                results[model] = res
+                await self.bus.emit("api_job_result", chunk=chunk.index, cached=False, model=model,
+                                    signals=res.get("signals"), summary=res.get("summary"))
+        merged = self._merge(results)
         if self.s.amplifier_cache in ("warm", "record"):
-            self._cache_write(chunk, result)
-        await self.bus.emit("api_job_result", chunk=chunk.index, cached=False,
-                            signals=result.get("signals"), summary=result.get("summary"))
-        return result
+            self._cache_write(chunk, merged)
+        return merged
