@@ -12,6 +12,7 @@ dependencies = [
     "pydantic>=2.7",
     "faster-whisper>=1.0",
     "pydub>=0.25",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]

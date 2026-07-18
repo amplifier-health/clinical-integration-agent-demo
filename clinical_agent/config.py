@@ -18,6 +18,8 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
+        from dotenv import load_dotenv
+        load_dotenv()  # reads .env from the working directory; real env vars win
         return cls(
             amplifier_base_url=os.environ.get("AMPLIFIER_BASE_URL", cls.amplifier_base_url),
             amplifier_account_id=os.environ.get("AMPLIFIER_ACCOUNT_ID", ""),
