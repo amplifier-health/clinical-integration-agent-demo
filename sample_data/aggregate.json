@@ -1,0 +1,829 @@
+{
+ "patient": "SAMPLE-001 (synthetic)",
+ "signal_order": [
+  "anxiety",
+  "mood-disruption",
+  "elevated-androgens",
+  "elevated-blood-pressure",
+  "iron-deficiency",
+  "fatigue",
+  "dehydration"
+ ],
+ "generated": "synthetic sample \u2014 illustrative only, not real patient data",
+ "visits": [
+  {
+   "seq": 1,
+   "date": "2025-01-06",
+   "label": "Ear infection",
+   "mark": "runway",
+   "n_chunks": 2,
+   "n_conclusive": 2,
+   "signals": {
+    "anxiety": {
+     "mean": 0.12,
+     "max": 0.2,
+     "peak_tier": "low",
+     "n": 2
+    },
+    "elevated-androgens": {
+     "mean": 0.05,
+     "max": 0.08,
+     "peak_tier": "none",
+     "n": 2
+    },
+    "fatigue": {
+     "mean": 0.09,
+     "max": 0.14,
+     "peak_tier": "low",
+     "n": 2
+    },
+    "iron-deficiency": {
+     "mean": 0.07,
+     "max": 0.1,
+     "peak_tier": "low",
+     "n": 2
+    }
+   },
+   "wellness": {
+    "vad-valence": {
+     "label": "Emotional Valence",
+     "mean": 0.55,
+     "n": 6,
+     "anchors": [
+      "negative",
+      "positive"
+     ]
+    },
+    "fatigue": {
+     "label": "Fatigue",
+     "mean": 0.35,
+     "n": 6,
+     "anchors": [
+      "invigorated",
+      "exhausted"
+     ]
+    },
+    "burnout": {
+     "label": "Burnout",
+     "mean": 0.3,
+     "n": 6,
+     "anchors": [
+      "engaged",
+      "burned out"
+     ]
+    },
+    "stress-resilience": {
+     "label": "Stress Resilience",
+     "mean": 0.8,
+     "n": 6,
+     "anchors": [
+      "overwhelmed",
+      "resilient"
+     ]
+    },
+    "outlook": {
+     "label": "Outlook",
+     "mean": 0.6,
+     "n": 6,
+     "anchors": [
+      "hopeless",
+      "optimistic"
+     ]
+    }
+   },
+   "speech": {
+    "pitch_mean": {
+     "label": "Average Pitch",
+     "mean": 198,
+     "unit": "Hz",
+     "n": 6
+    },
+    "speech_rate": {
+     "label": "Speech Rate",
+     "mean": 4.4,
+     "unit": "syllables/s",
+     "n": 6
+    },
+    "voice_jitter": {
+     "label": "Voice Roughness (Jitter)",
+     "mean": 0.021,
+     "unit": "%",
+     "n": 6
+    }
+   }
+  },
+  {
+   "seq": 2,
+   "date": "2025-02-10",
+   "label": "Sinusitis",
+   "mark": "runway",
+   "n_chunks": 4,
+   "n_conclusive": 4,
+   "signals": {
+    "anxiety": {
+     "mean": 0.18,
+     "max": 0.24,
+     "peak_tier": "consider",
+     "n": 4
+    },
+    "elevated-androgens": {
+     "mean": 0.09,
+     "max": 0.13,
+     "peak_tier": "low",
+     "n": 4
+    },
+    "fatigue": {
+     "mean": 0.14,
+     "max": 0.2,
+     "peak_tier": "low",
+     "n": 4
+    },
+    "iron-deficiency": {
+     "mean": 0.11,
+     "max": 0.16,
+     "peak_tier": "consider",
+     "n": 4
+    }
+   },
+   "wellness": {
+    "vad-valence": {
+     "label": "Emotional Valence",
+     "mean": 0.5,
+     "n": 6,
+     "anchors": [
+      "negative",
+      "positive"
+     ]
+    },
+    "fatigue": {
+     "label": "Fatigue",
+     "mean": 0.42,
+     "n": 6,
+     "anchors": [
+      "invigorated",
+      "exhausted"
+     ]
+    },
+    "burnout": {
+     "label": "Burnout",
+     "mean": 0.38,
+     "n": 6,
+     "anchors": [
+      "engaged",
+      "burned out"
+     ]
+    },
+    "stress-resilience": {
+     "label": "Stress Resilience",
+     "mean": 0.72,
+     "n": 6,
+     "anchors": [
+      "overwhelmed",
+      "resilient"
+     ]
+    },
+    "outlook": {
+     "label": "Outlook",
+     "mean": 0.55,
+     "n": 6,
+     "anchors": [
+      "hopeless",
+      "optimistic"
+     ]
+    }
+   },
+   "speech": {
+    "pitch_mean": {
+     "label": "Average Pitch",
+     "mean": 195,
+     "unit": "Hz",
+     "n": 6
+    },
+    "speech_rate": {
+     "label": "Speech Rate",
+     "mean": 4.2,
+     "unit": "syllables/s",
+     "n": 6
+    },
+    "voice_jitter": {
+     "label": "Voice Roughness (Jitter)",
+     "mean": 0.024,
+     "unit": "%",
+     "n": 6
+    }
+   }
+  },
+  {
+   "seq": 3,
+   "date": "2025-03-03",
+   "label": "Annual \u2014 'no issues'",
+   "mark": "runway",
+   "n_chunks": 9,
+   "n_conclusive": 9,
+   "signals": {
+    "anxiety": {
+     "mean": 0.22,
+     "max": 0.31,
+     "peak_tier": "consider",
+     "n": 9
+    },
+    "elevated-androgens": {
+     "mean": 0.15,
+     "max": 0.22,
+     "peak_tier": "consider",
+     "n": 9
+    },
+    "fatigue": {
+     "mean": 0.19,
+     "max": 0.27,
+     "peak_tier": "consider",
+     "n": 9
+    },
+    "iron-deficiency": {
+     "mean": 0.14,
+     "max": 0.2,
+     "peak_tier": "consider",
+     "n": 9
+    }
+   },
+   "wellness": {
+    "vad-valence": {
+     "label": "Emotional Valence",
+     "mean": 0.46,
+     "n": 6,
+     "anchors": [
+      "negative",
+      "positive"
+     ]
+    },
+    "fatigue": {
+     "label": "Fatigue",
+     "mean": 0.5,
+     "n": 6,
+     "anchors": [
+      "invigorated",
+      "exhausted"
+     ]
+    },
+    "burnout": {
+     "label": "Burnout",
+     "mean": 0.45,
+     "n": 6,
+     "anchors": [
+      "engaged",
+      "burned out"
+     ]
+    },
+    "stress-resilience": {
+     "label": "Stress Resilience",
+     "mean": 0.65,
+     "n": 6,
+     "anchors": [
+      "overwhelmed",
+      "resilient"
+     ]
+    },
+    "outlook": {
+     "label": "Outlook",
+     "mean": 0.51,
+     "n": 6,
+     "anchors": [
+      "hopeless",
+      "optimistic"
+     ]
+    }
+   },
+   "speech": {
+    "pitch_mean": {
+     "label": "Average Pitch",
+     "mean": 192,
+     "unit": "Hz",
+     "n": 6
+    },
+    "speech_rate": {
+     "label": "Speech Rate",
+     "mean": 4.1,
+     "unit": "syllables/s",
+     "n": 6
+    },
+    "voice_jitter": {
+     "label": "Voice Roughness (Jitter)",
+     "mean": 0.026,
+     "unit": "%",
+     "n": 6
+    }
+   }
+  },
+  {
+   "seq": 4,
+   "date": "2025-03-28",
+   "label": "Anxiety Dx",
+   "mark": "anx_onset",
+   "n_chunks": 8,
+   "n_conclusive": 8,
+   "signals": {
+    "anxiety": {
+     "mean": 0.41,
+     "max": 0.58,
+     "peak_tier": "moderate",
+     "n": 8
+    },
+    "elevated-androgens": {
+     "mean": 0.24,
+     "max": 0.33,
+     "peak_tier": "moderate",
+     "n": 8
+    },
+    "fatigue": {
+     "mean": 0.28,
+     "max": 0.4,
+     "peak_tier": "moderate",
+     "n": 8
+    },
+    "mood-disruption": {
+     "mean": 0.2,
+     "max": 0.3,
+     "peak_tier": "consider",
+     "n": 8
+    }
+   },
+   "wellness": {
+    "vad-valence": {
+     "label": "Emotional Valence",
+     "mean": 0.4,
+     "n": 6,
+     "anchors": [
+      "negative",
+      "positive"
+     ]
+    },
+    "fatigue": {
+     "label": "Fatigue",
+     "mean": 0.58,
+     "n": 6,
+     "anchors": [
+      "invigorated",
+      "exhausted"
+     ]
+    },
+    "burnout": {
+     "label": "Burnout",
+     "mean": 0.55,
+     "n": 6,
+     "anchors": [
+      "engaged",
+      "burned out"
+     ]
+    },
+    "stress-resilience": {
+     "label": "Stress Resilience",
+     "mean": 0.55,
+     "n": 6,
+     "anchors": [
+      "overwhelmed",
+      "resilient"
+     ]
+    },
+    "outlook": {
+     "label": "Outlook",
+     "mean": 0.45,
+     "n": 6,
+     "anchors": [
+      "hopeless",
+      "optimistic"
+     ]
+    }
+   },
+   "speech": {
+    "pitch_mean": {
+     "label": "Average Pitch",
+     "mean": 190,
+     "unit": "Hz",
+     "n": 6
+    },
+    "speech_rate": {
+     "label": "Speech Rate",
+     "mean": 3.9,
+     "unit": "syllables/s",
+     "n": 6
+    },
+    "voice_jitter": {
+     "label": "Voice Roughness (Jitter)",
+     "mean": 0.03,
+     "unit": "%",
+     "n": 6
+    }
+   }
+  },
+  {
+   "seq": 5,
+   "date": "2025-04-15",
+   "label": "Oligomenorrhea",
+   "mark": "menstrual",
+   "n_chunks": 8,
+   "n_conclusive": 8,
+   "signals": {
+    "anxiety": {
+     "mean": 0.38,
+     "max": 0.5,
+     "peak_tier": "moderate",
+     "n": 8
+    },
+    "elevated-androgens": {
+     "mean": 0.33,
+     "max": 0.46,
+     "peak_tier": "moderate",
+     "n": 8
+    },
+    "fatigue": {
+     "mean": 0.31,
+     "max": 0.44,
+     "peak_tier": "moderate",
+     "n": 8
+    },
+    "iron-deficiency": {
+     "mean": 0.22,
+     "max": 0.3,
+     "peak_tier": "consider",
+     "n": 8
+    }
+   },
+   "wellness": {
+    "vad-valence": {
+     "label": "Emotional Valence",
+     "mean": 0.42,
+     "n": 6,
+     "anchors": [
+      "negative",
+      "positive"
+     ]
+    },
+    "fatigue": {
+     "label": "Fatigue",
+     "mean": 0.55,
+     "n": 6,
+     "anchors": [
+      "invigorated",
+      "exhausted"
+     ]
+    },
+    "burnout": {
+     "label": "Burnout",
+     "mean": 0.5,
+     "n": 6,
+     "anchors": [
+      "engaged",
+      "burned out"
+     ]
+    },
+    "stress-resilience": {
+     "label": "Stress Resilience",
+     "mean": 0.6,
+     "n": 6,
+     "anchors": [
+      "overwhelmed",
+      "resilient"
+     ]
+    },
+    "outlook": {
+     "label": "Outlook",
+     "mean": 0.47,
+     "n": 6,
+     "anchors": [
+      "hopeless",
+      "optimistic"
+     ]
+    }
+   },
+   "speech": {
+    "pitch_mean": {
+     "label": "Average Pitch",
+     "mean": 188,
+     "unit": "Hz",
+     "n": 6
+    },
+    "speech_rate": {
+     "label": "Speech Rate",
+     "mean": 3.9,
+     "unit": "syllables/s",
+     "n": 6
+    },
+    "voice_jitter": {
+     "label": "Voice Roughness (Jitter)",
+     "mean": 0.031,
+     "unit": "%",
+     "n": 6
+    }
+   }
+  },
+  {
+   "seq": 6,
+   "date": "2025-05-20",
+   "label": "Follow-up",
+   "mark": "",
+   "n_chunks": 10,
+   "n_conclusive": 10,
+   "signals": {
+    "anxiety": {
+     "mean": 0.45,
+     "max": 0.6,
+     "peak_tier": "moderate",
+     "n": 10
+    },
+    "elevated-androgens": {
+     "mean": 0.4,
+     "max": 0.55,
+     "peak_tier": "elevated",
+     "n": 10
+    },
+    "fatigue": {
+     "mean": 0.35,
+     "max": 0.48,
+     "peak_tier": "moderate",
+     "n": 10
+    },
+    "mood-disruption": {
+     "mean": 0.28,
+     "max": 0.4,
+     "peak_tier": "moderate",
+     "n": 10
+    }
+   },
+   "wellness": {
+    "vad-valence": {
+     "label": "Emotional Valence",
+     "mean": 0.38,
+     "n": 6,
+     "anchors": [
+      "negative",
+      "positive"
+     ]
+    },
+    "fatigue": {
+     "label": "Fatigue",
+     "mean": 0.6,
+     "n": 6,
+     "anchors": [
+      "invigorated",
+      "exhausted"
+     ]
+    },
+    "burnout": {
+     "label": "Burnout",
+     "mean": 0.58,
+     "n": 6,
+     "anchors": [
+      "engaged",
+      "burned out"
+     ]
+    },
+    "stress-resilience": {
+     "label": "Stress Resilience",
+     "mean": 0.52,
+     "n": 6,
+     "anchors": [
+      "overwhelmed",
+      "resilient"
+     ]
+    },
+    "outlook": {
+     "label": "Outlook",
+     "mean": 0.43,
+     "n": 6,
+     "anchors": [
+      "hopeless",
+      "optimistic"
+     ]
+    }
+   },
+   "speech": {
+    "pitch_mean": {
+     "label": "Average Pitch",
+     "mean": 186,
+     "unit": "Hz",
+     "n": 6
+    },
+    "speech_rate": {
+     "label": "Speech Rate",
+     "mean": 3.8,
+     "unit": "syllables/s",
+     "n": 6
+    },
+    "voice_jitter": {
+     "label": "Voice Roughness (Jitter)",
+     "mean": 0.033,
+     "unit": "%",
+     "n": 6
+    }
+   }
+  },
+  {
+   "seq": 7,
+   "date": "2025-07-08",
+   "label": "PCOS Dx",
+   "mark": "pcos_onset",
+   "n_chunks": 12,
+   "n_conclusive": 12,
+   "signals": {
+    "anxiety": {
+     "mean": 0.62,
+     "max": 0.78,
+     "peak_tier": "moderate",
+     "n": 12
+    },
+    "elevated-androgens": {
+     "mean": 0.55,
+     "max": 0.72,
+     "peak_tier": "elevated",
+     "n": 12
+    },
+    "fatigue": {
+     "mean": 0.4,
+     "max": 0.55,
+     "peak_tier": "moderate",
+     "n": 12
+    },
+    "iron-deficiency": {
+     "mean": 0.3,
+     "max": 0.42,
+     "peak_tier": "moderate",
+     "n": 12
+    },
+    "mood-disruption": {
+     "mean": 0.35,
+     "max": 0.5,
+     "peak_tier": "moderate",
+     "n": 12
+    }
+   },
+   "wellness": {
+    "vad-valence": {
+     "label": "Emotional Valence",
+     "mean": 0.34,
+     "n": 6,
+     "anchors": [
+      "negative",
+      "positive"
+     ]
+    },
+    "fatigue": {
+     "label": "Fatigue",
+     "mean": 0.66,
+     "n": 6,
+     "anchors": [
+      "invigorated",
+      "exhausted"
+     ]
+    },
+    "burnout": {
+     "label": "Burnout",
+     "mean": 0.62,
+     "n": 6,
+     "anchors": [
+      "engaged",
+      "burned out"
+     ]
+    },
+    "stress-resilience": {
+     "label": "Stress Resilience",
+     "mean": 0.48,
+     "n": 6,
+     "anchors": [
+      "overwhelmed",
+      "resilient"
+     ]
+    },
+    "outlook": {
+     "label": "Outlook",
+     "mean": 0.39,
+     "n": 6,
+     "anchors": [
+      "hopeless",
+      "optimistic"
+     ]
+    }
+   },
+   "speech": {
+    "pitch_mean": {
+     "label": "Average Pitch",
+     "mean": 183,
+     "unit": "Hz",
+     "n": 6
+    },
+    "speech_rate": {
+     "label": "Speech Rate",
+     "mean": 3.7,
+     "unit": "syllables/s",
+     "n": 6
+    },
+    "voice_jitter": {
+     "label": "Voice Roughness (Jitter)",
+     "mean": 0.036,
+     "unit": "%",
+     "n": 6
+    }
+   }
+  },
+  {
+   "seq": 8,
+   "date": "2025-09-02",
+   "label": "PCOS + Anxiety f/u",
+   "mark": "",
+   "n_chunks": 9,
+   "n_conclusive": 9,
+   "signals": {
+    "anxiety": {
+     "mean": 0.5,
+     "max": 0.66,
+     "peak_tier": "moderate",
+     "n": 9
+    },
+    "elevated-androgens": {
+     "mean": 0.48,
+     "max": 0.63,
+     "peak_tier": "elevated",
+     "n": 9
+    },
+    "fatigue": {
+     "mean": 0.37,
+     "max": 0.5,
+     "peak_tier": "moderate",
+     "n": 9
+    },
+    "mood-disruption": {
+     "mean": 0.3,
+     "max": 0.44,
+     "peak_tier": "moderate",
+     "n": 9
+    }
+   },
+   "wellness": {
+    "vad-valence": {
+     "label": "Emotional Valence",
+     "mean": 0.4,
+     "n": 6,
+     "anchors": [
+      "negative",
+      "positive"
+     ]
+    },
+    "fatigue": {
+     "label": "Fatigue",
+     "mean": 0.6,
+     "n": 6,
+     "anchors": [
+      "invigorated",
+      "exhausted"
+     ]
+    },
+    "burnout": {
+     "label": "Burnout",
+     "mean": 0.55,
+     "n": 6,
+     "anchors": [
+      "engaged",
+      "burned out"
+     ]
+    },
+    "stress-resilience": {
+     "label": "Stress Resilience",
+     "mean": 0.55,
+     "n": 6,
+     "anchors": [
+      "overwhelmed",
+      "resilient"
+     ]
+    },
+    "outlook": {
+     "label": "Outlook",
+     "mean": 0.45,
+     "n": 6,
+     "anchors": [
+      "hopeless",
+      "optimistic"
+     ]
+    }
+   },
+   "speech": {
+    "pitch_mean": {
+     "label": "Average Pitch",
+     "mean": 185,
+     "unit": "Hz",
+     "n": 6
+    },
+    "speech_rate": {
+     "label": "Speech Rate",
+     "mean": 3.8,
+     "unit": "syllables/s",
+     "n": 6
+    },
+    "voice_jitter": {
+     "label": "Voice Roughness (Jitter)",
+     "mean": 0.034,
+     "unit": "%",
+     "n": 6
+    }
+   }
+  }
+ ]
+}

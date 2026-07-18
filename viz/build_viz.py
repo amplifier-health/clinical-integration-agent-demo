@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""Generate the interactive voice-biomarker trajectory dashboard from an aggregate.json.
+
+Usage:
+    python viz/build_viz.py sample_data/aggregate.json viz/trajectories.html
+"""
+import json, sys
+src = sys.argv[1] if len(sys.argv) > 1 else "sample_data/aggregate.json"
+out = sys.argv[2] if len(sys.argv) > 2 else "viz/trajectories.html"
+data = json.load(open(src))
+DATA_JSON = json.dumps(data)
+
+HTML=r"""<title>Voice-Biomarker Trajectories</title>
+<style>
+:root{
+  --bg:#f4f6f8; --surface:#ffffff; --surface-2:#eef1f4; --ink:#12181f; --ink-2:#43505e; --muted:#7c8794;
+  --line:#d8dee5; --accent:#0e7c86; --accent-2:#b5316b;
+  --t-none:#dfe4ea; --t-low:#f2e2a8; --t-consider:#efb14a; --t-moderate:#e2792e; --t-elevated:#cc2f2a; --t-incon:#c9d0d8;
+  --seq0:#eef4f4; --seq1:#bfe0e0; --seq2:#7cc3c4; --seq3:#3f9ea3; --seq4:#1f6d76;
+  --runway:rgba(14,124,134,.09); --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1418; --surface:#161d23; --surface-2:#1e262d; --ink:#eef2f6; --ink-2:#aab6c2; --muted:#7a8794;
+  --line:#2a343d; --accent:#3fb5bf; --accent-2:#e072a1;
+  --t-none:#2b333b; --t-low:#5c5326; --t-consider:#a8792a; --t-moderate:#c2611f; --t-elevated:#d33b34; --t-incon:#333b43;
+  --seq0:#172124; --seq1:#1f3d40; --seq2:#2c6067; --seq3:#3f9ea3; --seq4:#77c6c9;
+  --runway:rgba(63,181,191,.10);
+}}
+:root[data-theme=dark]{--bg:#0f1418;--surface:#161d23;--surface-2:#1e262d;--ink:#eef2f6;--ink-2:#aab6c2;--muted:#7a8794;--line:#2a343d;--accent:#3fb5bf;--accent-2:#e072a1;--t-none:#2b333b;--t-low:#5c5326;--t-consider:#a8792a;--t-moderate:#c2611f;--t-elevated:#d33b34;--t-incon:#333b43;--seq0:#172124;--seq1:#1f3d40;--seq2:#2c6067;--seq3:#3f9ea3;--seq4:#77c6c9;--runway:rgba(63,181,191,.10);}
+:root[data-theme=light]{--bg:#f4f6f8;--surface:#fff;--surface-2:#eef1f4;--ink:#12181f;--ink-2:#43505e;--muted:#7c8794;--line:#d8dee5;--accent:#0e7c86;--accent-2:#b5316b;--t-none:#dfe4ea;--t-low:#f2e2a8;--t-consider:#efb14a;--t-moderate:#e2792e;--t-elevated:#cc2f2a;--t-incon:#c9d0d8;--seq0:#eef4f4;--seq1:#bfe0e0;--seq2:#7cc3c4;--seq3:#3f9ea3;--seq4:#1f6d76;--runway:rgba(14,124,134,.09);}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 24px 80px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:8px}
+h1{font-size:26px;letter-spacing:-.02em;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--ink-2);font-size:15px;max-width:70ch}
+.pill{display:inline-block;font-size:12px;padding:2px 9px;border-radius:20px;background:var(--surface-2);color:var(--ink-2);margin-right:6px}
+.toggle{background:var(--surface);border:1px solid var(--line);color:var(--ink-2);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:var(--font)}
+.toggle:hover{border-color:var(--accent)}
+section{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 22px 24px;margin-top:22px}
+h2{font-size:15px;letter-spacing:.02em;text-transform:uppercase;color:var(--ink-2);margin:0 0 3px}
+.desc{font-size:13.5px;color:var(--muted);margin:0 0 18px;max-width:78ch}
+.scroll{overflow-x:auto}
+table.hm{border-collapse:separate;border-spacing:3px;font-size:12px}
+.hm th{font-weight:500;color:var(--ink-2);font-size:11.5px;padding:0 3px;vertical-align:bottom;text-align:center;white-space:nowrap}
+.hm th.row{text-align:right;white-space:nowrap;padding-right:8px;max-width:180px}
+.hm td{width:52px;height:40px;border-radius:6px;text-align:center;font-variant-numeric:tabular-nums;font-family:var(--mono);cursor:default;position:relative;color:#12181f}
+.hm td.dark-txt{color:#12181f}.hm td.light-txt{color:#f4f6f8}
+.colhead{display:flex;flex-direction:column;align-items:center;gap:2px}
+.colhead .v{font-weight:600;color:var(--ink)}
+.colhead .d{font-size:9.5px;color:var(--muted)}
+.mk{font-size:9px;padding:1px 5px;border-radius:10px;font-weight:600;letter-spacing:.02em}
+.mk.anx{background:var(--accent-2);color:#fff}.mk.pcos{background:var(--accent);color:#fff}.mk.run{background:var(--t-none);color:var(--ink-2)}.mk.men{background:var(--t-consider);color:#12181f}
+.legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--ink-2);margin-top:14px}
+.sw{display:inline-flex;align-items:center;gap:6px}.sw i{width:16px;height:12px;border-radius:3px;display:inline-block}
+.tt{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);padding:8px 10px;border-radius:8px;font-size:12px;opacity:0;transition:opacity .1s;z-index:50;max-width:240px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.tt b{color:var(--bg)} .tt .k{color:var(--muted)}
+svg{display:block;max-width:100%}
+.axlab{fill:var(--muted);font-size:11px;font-family:var(--font)}
+.gl{stroke:var(--line);stroke-width:1}
+.spark{width:120px;height:26px}
+.sf-row{display:grid;grid-template-columns:180px 1fr 90px;gap:12px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+.sf-row:last-child{border:0}.sf-name{color:var(--ink-2)}.sf-val{font-family:var(--mono);text-align:right;color:var(--ink);font-size:12.5px}
+.foot{color:var(--muted);font-size:12px;margin-top:26px;text-align:center}
+.hidden{display:none}
+</style>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Voice-Biomarker Trajectories</h1>
+    <div class="sub" id="subline">Each visit's patient-only audio is split into 30s/15s-overlap chunks and scored by a voice-biomarker model. Values aggregate conclusive chunks per visit. <b>Elevated-androgens</b> and <b>anxiety</b> are the pre-diagnostic markers of interest.</div>
+    <div style="margin-top:10px">
+      <span class="pill">🩶 Silent runway v1–v4</span><span class="pill" style="background:var(--accent-2);color:#fff">Anxiety Dx v5</span><span class="pill" style="background:var(--t-consider);color:#12181f">Oligomenorrhea v6</span><span class="pill" style="background:var(--accent);color:#fff">PCOS Dx v12</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px"><button class="toggle" id="tblBtn">Table view</button><button class="toggle" id="thBtn">◑ Theme</button></div>
+</header>
+
+<section>
+  <h2>Condition Signals — tier &amp; probability</h2>
+  <p class="desc">Cell colour = peak tier reached at that visit; number = mean probability across the visit's conclusive chunks. Watch <b>elevated-androgens</b> rise from the runway to <b>elevated</b> at the PCOS diagnosis, and <b>anxiety</b> hold at <b>consider</b> before spiking.</p>
+  <div class="scroll"><div id="sigHeat"></div></div>
+  <div class="legend" id="tierLegend"></div>
+</section>
+
+<section>
+  <h2>Pre-diagnostic trajectory — Anxiety vs Elevated Androgens</h2>
+  <p class="desc">Mean probability per visit. Markers show where each condition was clinically coded — the signal is visible before the code lands.</p>
+  <div class="scroll"><div id="lineChart"></div></div>
+</section>
+
+<section>
+  <h2>Wellness &amp; affect metrics</h2>
+  <p class="desc">Aria's extended affect/behavioural metrics (0–1). Higher = toward the first anchor listed on hover. Sequential shading by score.</p>
+  <div class="scroll"><div id="wellHeat"></div></div>
+</section>
+
+<section>
+  <h2>Speech features</h2>
+  <p class="desc">Acoustic features averaged per visit, with a sparkline of the trajectory. Absolute values in native units.</p>
+  <div id="speechTbl"></div>
+</section>
+
+<section id="tableSec" class="hidden">
+  <h2>Raw aggregate table — condition signals</h2>
+  <div class="scroll"><div id="rawTbl"></div></div>
+</section>
+
+<div class="foot" id="foot"></div>
+</div>
+<div class="tt" id="tt"></div>
+<script>
+const DATA=__DATA__;
+const TIER={none:'--t-none',low:'--t-low',consider:'--t-consider',moderate:'--t-moderate',elevated:'--t-elevated',inconclusive:'--t-incon'};
+const TIER_DARKTXT={none:1,low:1,consider:1,inconclusive:1,moderate:0,elevated:0};
+const SIGLABEL={'anxiety':'Anxiety','mood-disruption':'Mood Disruption','elevated-androgens':'Elevated Androgens','elevated-blood-pressure':'Elevated Blood Pressure','iron-deficiency':'Iron Deficiency','fatigue':'Fatigue','dehydration':'Dehydration'};
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const V=DATA.visits, ORDER=DATA.signal_order;
+const tt=document.getElementById('tt');
+function showTT(html,e){tt.innerHTML=html;tt.style.opacity=1;moveTT(e);}
+function moveTT(e){tt.style.left=Math.min(e.clientX+14,innerWidth-250)+'px';tt.style.top=(e.clientY+14)+'px';}
+function hideTT(){tt.style.opacity=0;}
+
+/* ---- Condition signal heatmap ---- */
+function markChip(m){return {runway:'<span class="mk run">runway</span>',anx_onset:'<span class="mk anx">Anx Dx</span>',pcos_onset:'<span class="mk pcos">PCOS Dx</span>',menstrual:'<span class="mk men">menstr</span>'}[m]||'';}
+function buildSigHeat(){
+  let h='<table class="hm"><thead><tr><th class="row"></th>';
+  V.forEach(v=>{h+=`<th><div class="colhead"><span class="v">v${v.seq}</span><span class="d">${v.date.slice(5)}</span>${markChip(v.mark)}</div></th>`;});
+  h+='</tr></thead><tbody>';
+  ORDER.forEach(sig=>{
+    h+=`<tr><th class="row">${SIGLABEL[sig]||sig}</th>`;
+    V.forEach(v=>{
+      const s=v.signals[sig];
+      if(!s){h+='<td style="background:var(--t-incon);opacity:.4"></td>';return;}
+      const c=cssv(TIER[s.peak_tier]); const cls=TIER_DARKTXT[s.peak_tier]?'dark-txt':'light-txt';
+      h+=`<td class="${cls}" style="background:${c}" data-sig="${sig}" data-v="${v.seq}">${s.mean.toFixed(2)}</td>`;
+    });
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  document.getElementById('sigHeat').innerHTML=h;
+  document.querySelectorAll('#sigHeat td[data-sig]').forEach(td=>{
+    td.onmousemove=e=>{const v=V.find(x=>x.seq==td.dataset.v),s=v.signals[td.dataset.sig];
+      showTT(`<b>${SIGLABEL[td.dataset.sig]}</b> · v${v.seq} ${v.label}<br><span class="k">tier</span> ${s.peak_tier} &nbsp; <span class="k">prob</span> ${s.mean.toFixed(3)}<br><span class="k">peak</span> ${s.max.toFixed(3)} · <span class="k">n=</span>${s.n} chunks`,e);};
+    td.onmouseleave=hideTT;
+  });
+  // tier legend
+  let lg='';['none','low','consider','moderate','elevated','inconclusive'].forEach(t=>{lg+=`<span class="sw"><i style="background:${cssv(TIER[t])}"></i>${t}</span>`;});
+  document.getElementById('tierLegend').innerHTML=lg;
+}
+
+/* ---- Line chart ---- */
+function buildLine(){
+  const W=Math.max(680,V.length*70),H=300,P={l:44,r:90,t:18,b:44};
+  const iw=W-P.l-P.r, ih=H-P.t-P.b;
+  const x=i=>P.l+(V.length<2?iw/2:iw*i/(V.length-1));
+  const y=v=>P.t+ih-ih*Math.min(v,1);
+  const series=[{k:'anxiety',c:cssv('--accent-2'),lab:'Anxiety'},{k:'elevated-androgens',c:cssv('--accent'),lab:'Elevated Androgens'}];
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`;
+  [0,.25,.5,.75,1].forEach(g=>{s+=`<line class="gl" x1="${P.l}" y1="${y(g)}" x2="${W-P.r}" y2="${y(g)}"/><text class="axlab" x="${P.l-8}" y="${y(g)+3}" text-anchor="end">${g.toFixed(2)}</text>`;});
+  V.forEach((v,i)=>{s+=`<text class="axlab" x="${x(i)}" y="${H-24}" text-anchor="middle">v${v.seq}</text>`;
+    if(v.mark==='anx_onset')s+=`<line x1="${x(i)}" y1="${P.t}" x2="${x(i)}" y2="${P.t+ih}" stroke="${cssv('--accent-2')}" stroke-dasharray="4 3" stroke-width="1.5"/>`;
+    if(v.mark==='pcos_onset')s+=`<line x1="${x(i)}" y1="${P.t}" x2="${x(i)}" y2="${P.t+ih}" stroke="${cssv('--accent')}" stroke-dasharray="4 3" stroke-width="1.5"/>`;
+  });
+  series.forEach(se=>{
+    let pts=V.map((v,i)=>v.signals[se.k]?[x(i),y(v.signals[se.k].mean),v.signals[se.k].mean,v]:null).filter(Boolean);
+    let d=pts.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ');
+    s+=`<path d="${d}" fill="none" stroke="${se.c}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    pts.forEach(p=>{s+=`<circle cx="${p[0]}" cy="${p[1]}" r="4.5" fill="${se.c}" stroke="var(--surface)" stroke-width="1.5" data-k="${se.k}" data-s="${p[3].seq}"/>`;});
+    const last=pts[pts.length-1];
+    s+=`<text x="${last[0]+8}" y="${last[1]+3}" fill="${se.c}" font-size="12" font-weight="600">${se.lab}</text>`;
+  });
+  s+='</svg>';
+  document.getElementById('lineChart').innerHTML=s;
+  document.querySelectorAll('#lineChart circle').forEach(c=>{
+    c.onmousemove=e=>{const v=V.find(x=>x.seq==c.dataset.s),sg=v.signals[c.dataset.k];
+      showTT(`<b>${SIGLABEL[c.dataset.k]}</b> · v${v.seq} ${v.label}<br><span class="k">prob</span> ${sg.mean.toFixed(3)} · <span class="k">tier</span> ${sg.peak_tier}`,e);};
+    c.onmouseleave=hideTT;
+  });
+}
+
+/* ---- Wellness heatmap ---- */
+function buildWell(){
+  const metrics={};V.forEach(v=>Object.entries(v.wellness||{}).forEach(([k,o])=>metrics[k]=o.label));
+  const keys=Object.keys(metrics);
+  if(!keys.length){document.getElementById('wellHeat').innerHTML='<p class="desc">No wellness metrics yet.</p>';return;}
+  const seq=['--seq0','--seq1','--seq2','--seq3','--seq4'].map(cssv);
+  const col=v=>seq[Math.min(4,Math.max(0,Math.floor(v*5)))];
+  let h='<table class="hm"><thead><tr><th class="row"></th>';
+  V.forEach(v=>h+=`<th><div class="colhead"><span class="v">v${v.seq}</span></div></th>`);h+='</tr></thead><tbody>';
+  keys.forEach(k=>{h+=`<tr><th class="row">${metrics[k]}</th>`;
+    V.forEach(v=>{const o=(v.wellness||{})[k];
+      if(!o){h+='<td style="background:var(--t-incon);opacity:.35"></td>';return;}
+      const dark=o.mean>0.55; h+=`<td class="${dark?'light-txt':'dark-txt'}" style="background:${col(o.mean)}" data-w="${k}" data-v="${v.seq}">${o.mean.toFixed(2)}</td>`;});
+    h+='</tr>';});
+  h+='</tbody></table>';document.getElementById('wellHeat').innerHTML=h;
+  document.querySelectorAll('#wellHeat td[data-w]').forEach(td=>{
+    td.onmousemove=e=>{const v=V.find(x=>x.seq==td.dataset.v),o=v.wellness[td.dataset.w];
+      showTT(`<b>${o.label}</b> · v${v.seq}<br><span class="k">score</span> ${o.mean.toFixed(3)}<br><span class="k">${o.anchors[1]}</span> ↔ <span class="k">${o.anchors[0]}</span> · n=${o.n}`,e);};
+    td.onmouseleave=hideTT;});
+}
+
+/* ---- Speech features ---- */
+function buildSpeech(){
+  const feats={};V.forEach(v=>Object.entries(v.speech||{}).forEach(([k,o])=>feats[k]=o));
+  const keys=Object.keys(feats);
+  if(!keys.length){document.getElementById('speechTbl').innerHTML='<p class="desc">No speech features yet.</p>';return;}
+  let h='';
+  keys.forEach(k=>{
+    const series=V.map(v=>(v.speech||{})[k]?v.speech[k].mean:null);
+    const vals=series.filter(x=>x!=null);const mn=Math.min(...vals),mx=Math.max(...vals),rng=(mx-mn)||1;
+    const W=120,Hs=26;let d='',n=series.length;
+    series.forEach((val,i)=>{if(val==null)return;const px=n<2?W/2:W*i/(n-1);const py=Hs-2-(Hs-4)*(val-mn)/rng;d+=(d?'L':'M')+px.toFixed(1)+' '+py.toFixed(1)+' ';});
+    const last=vals[vals.length-1],unit=feats[k].unit||'';
+    h+=`<div class="sf-row"><div class="sf-name">${feats[k].label}</div>
+      <svg class="spark" viewBox="0 0 ${W} ${Hs}"><path d="${d}" fill="none" stroke="${cssv('--accent')}" stroke-width="1.8"/></svg>
+      <div class="sf-val">${last.toFixed(2)} <span style="color:var(--muted);font-size:10px">${unit}</span></div></div>`;
+  });
+  document.getElementById('speechTbl').innerHTML=h;
+}
+
+/* ---- Raw table ---- */
+function buildRaw(){
+  let h='<table class="hm"><thead><tr><th class="row">signal</th>';
+  V.forEach(v=>h+=`<th>v${v.seq}</th>`);h+='</tr></thead><tbody>';
+  ORDER.forEach(sig=>{h+=`<tr><th class="row">${SIGLABEL[sig]}</th>`;
+    V.forEach(v=>{const s=v.signals[sig];h+=`<td class="dark-txt" style="background:var(--surface-2)">${s?s.mean.toFixed(3)+'<br><span style=\"font-size:9px;color:var(--muted)\">'+s.peak_tier+'</span>':'—'}</td>`;});h+='</tr>';});
+  h+='</tbody></table>';document.getElementById('rawTbl').innerHTML=h;
+}
+
+function foot(){const nc=V.reduce((a,v)=>a+v.n_conclusive,0),nt=V.reduce((a,v)=>a+v.n_chunks,0);
+  document.getElementById('foot').innerHTML=`${DATA.patient} · ${V.length} visits · ${nc}/${nt} conclusive chunks · ${DATA.generated}`;}
+
+function renderAll(){buildSigHeat();buildLine();buildWell();buildSpeech();buildRaw();foot();}
+renderAll();
+addEventListener('mousemove',e=>{if(tt.style.opacity==1)moveTT(e);});
+document.getElementById('tblBtn').onclick=()=>document.getElementById('tableSec').classList.toggle('hidden');
+document.getElementById('thBtn').onclick=()=>{const r=document.documentElement;const cur=r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');r.setAttribute('data-theme',cur==='dark'?'light':'dark');renderAll();};
+</script>
+"""
+html=HTML.replace("__DATA__",DATA_JSON)
+open(out,"w").write(html)
+print(f"wrote {out} ({len(html)} bytes) from {src}")

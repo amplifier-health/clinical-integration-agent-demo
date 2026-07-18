@@ -1,0 +1,18 @@
+# secrets — never commit
+.env
+*.key
+.akey
+.aid
+# local audio + generated outputs (may contain PHI)
+audio/
+chunks/
+results/
+*.wav
+*.webm
+__pycache__/
+*.pyc
+.DS_Store
+
+# local-only real-data scenarios (may contain PHI) and agent run outputs
+mock_agent/local/
+agent/*.jsonl

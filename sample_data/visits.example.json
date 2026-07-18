@@ -1,0 +1,50 @@
+[
+ {
+  "id": "v01",
+  "date": "2025-01-06",
+  "label": "Ear infection",
+  "mark": "runway"
+ },
+ {
+  "id": "v02",
+  "date": "2025-02-10",
+  "label": "Sinusitis",
+  "mark": "runway"
+ },
+ {
+  "id": "v03",
+  "date": "2025-03-03",
+  "label": "Annual \u2014 'no issues'",
+  "mark": "runway"
+ },
+ {
+  "id": "v04",
+  "date": "2025-03-28",
+  "label": "Anxiety Dx",
+  "mark": "anx_onset"
+ },
+ {
+  "id": "v05",
+  "date": "2025-04-15",
+  "label": "Oligomenorrhea",
+  "mark": "menstrual"
+ },
+ {
+  "id": "v06",
+  "date": "2025-05-20",
+  "label": "Follow-up",
+  "mark": ""
+ },
+ {
+  "id": "v07",
+  "date": "2025-07-08",
+  "label": "PCOS Dx",
+  "mark": "pcos_onset"
+ },
+ {
+  "id": "v08",
+  "date": "2025-09-02",
+  "label": "PCOS + Anxiety f/u",
+  "mark": ""
+ }
+]

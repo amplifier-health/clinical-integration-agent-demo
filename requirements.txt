@@ -1,0 +1,2 @@
+# Pipeline uses only the Python standard library + ffmpeg (system binary).
+# No third-party Python dependencies required.
