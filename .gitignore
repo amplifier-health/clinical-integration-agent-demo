@@ -3,16 +3,24 @@
 *.key
 .akey
 .aid
+
 # local audio + generated outputs (may contain PHI)
 audio/
 chunks/
 results/
+data/
+onset_analysis/
 *.wav
 *.webm
-__pycache__/
-*.pyc
-.DS_Store
 
-# local-only real-data scenarios (may contain PHI) and agent run outputs
+# local-only real-data scenarios (may contain PHI) + agent run outputs
 mock_agent/local/
 agent/*.jsonl
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+.DS_Store
