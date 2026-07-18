@@ -133,7 +133,7 @@ def main() -> None:
     dates = interpolate_dates(seqs, known_dates)
 
     store = PatientStore(args.data_dir)
-    store.save_patient(PatientMeta(id=args.pid, alias="Demo Patient (de-identified)", age=33, sex="F"))
+    store.save_patient(PatientMeta(id=args.pid, alias="Demo Patient (de-identified)", age=32, sex="F"))
 
     visits = []
     for seq in seqs:
