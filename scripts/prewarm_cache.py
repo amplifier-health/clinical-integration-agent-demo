@@ -26,6 +26,7 @@ from clinical_agent.amplifier import AmplifierClient  # noqa: E402
 from clinical_agent.audio import chunk_file  # noqa: E402
 from clinical_agent.config import Settings  # noqa: E402
 from clinical_agent.events import EventBus  # noqa: E402
+from clinical_agent.gcs import localize  # noqa: E402
 
 
 def _to_api_result(precomp: dict) -> dict:
@@ -43,14 +44,21 @@ def _to_api_result(precomp: dict) -> dict:
 
 async def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--audio", type=Path, required=True)
-    ap.add_argument("--results", required=True, help="glob for that visit's precomputed chunk JSONs")
+    ap.add_argument("--audio", required=True, help="visit audio — local path or gs:// URI")
+    ap.add_argument("--results", required=True,
+                    help="that visit's precomputed chunk JSONs — a local glob, or a gs:// wildcard "
+                         "(e.g. 'gs://amplifier-ai-research/abridge-hackathon-demo-071826/aria_results/v16_c*.json')")
     ap.add_argument("--data-dir", type=Path, default=Path("data"))
     ap.add_argument("--use-case", default="aria")
     args = ap.parse_args()
 
-    files = sorted(glob.glob(args.results),
-                   key=lambda f: int((re.search(r"c(\d+)", Path(f).stem) or re.match("0", "0")).group(1)))
+    audio = localize(args.audio)  # pulled from GCS on demand; never bundled in the repo
+    if str(args.results).startswith("gs://"):
+        rdir = localize(args.results)              # wildcard matches land flat in a temp dir
+        files = glob.glob(str(rdir / "*.json"))
+    else:
+        files = glob.glob(args.results)
+    files = sorted(files, key=lambda f: int((re.search(r"c(\d+)", Path(f).stem) or re.match("0", "0")).group(1)))
     precomp = [json.loads(Path(f).read_text()) for f in files]
     precomp = [p for p in precomp if p.get("status") == "done"]
     if not precomp:
@@ -60,7 +68,7 @@ async def main() -> None:
     client = AmplifierClient(settings, EventBus())
 
     written = 0
-    async for chunk in chunk_file(args.audio, speed=1e9):
+    async for chunk in chunk_file(audio, speed=1e9):
         if chunk.index >= len(precomp):
             break
         client._cache_write(chunk, _to_api_result(precomp[chunk.index]))

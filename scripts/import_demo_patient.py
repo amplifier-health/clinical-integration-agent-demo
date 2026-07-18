@@ -20,6 +20,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from clinical_agent.gcs import localize  # noqa: E402
 from clinical_agent.store import Icd10Code, PatientMeta, PatientStore, VisitMeta  # noqa: E402
 
 CODE_DESCRIPTIONS = {
@@ -109,21 +110,26 @@ def load_appointments(patient_dir: Path | None) -> dict[int, dict]:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("src", type=Path)
+    ap.add_argument("src", help="dataset root — local path or gs:// URI (e.g. "
+                                "gs://amplifier-ai-research/abridge-hackathon-demo-071826)")
     ap.add_argument("--pid", default="16bbcdbe")
     ap.add_argument("--data-dir", type=Path, default=Path("data"))
-    ap.add_argument("--patient-dir", type=Path, default=None,
-                    help="downloaded patient_<uuid> folder with per-appointment audio/transcripts")
+    ap.add_argument("--patient-dir", default=None,
+                    help="patient_<uuid> folder (local or gs://) with per-appointment audio/transcripts")
     ap.add_argument("--add-live-visit", action="store_true",
                     help="append a 'planned' visit at the end for the live-demo act")
     args = ap.parse_args()
 
-    agg = json.loads((args.src / "aggregate.json").read_text())
+    # Pull the dataset from GCS on demand — it is never stored in this repo.
+    src = localize(args.src)
+    patient_dir = localize(args.patient_dir) if args.patient_dir else None
+
+    agg = json.loads((src / "aggregate.json").read_text())
     agg_by_seq = {v["seq"]: v for v in agg["visits"]}
-    appts = load_appointments(args.patient_dir)
+    appts = load_appointments(patient_dir)
 
     chunks_by_seq: dict[int, list[dict]] = defaultdict(list)
-    for f in sorted((args.src / "aria_results").glob("*.json")):
+    for f in sorted((src / "aria_results").glob("*.json")):
         r = json.loads(f.read_text())
         chunks_by_seq[r["seq"]].append(r)
 
