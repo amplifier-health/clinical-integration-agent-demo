@@ -95,5 +95,76 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
     return summary
 
 
+_TIER_FLAGGED = {"consider", "moderate", "elevated", "high"}
+
+
+async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
+                       pid: str, visit_number: int | None = None) -> dict:
+    """Replay a visit from its precomputed per-chunk aria results — no audio, no Whisper, no
+    chunker. This is the 'mock the API, speed through the appointment' demo path: the signals
+    are the real precomputed ones, the agent reasoning is live."""
+    visits = store.list_visits(pid)
+    if visit_number is not None:
+        current = next((v for v in visits if v.number == visit_number), None)
+    else:
+        current = next((v for v in visits if v.status == "planned"), None)
+    if current is None:
+        raise ValueError(f"no visit {visit_number or '(planned)'} for patient {pid}")
+    chunks = store.read_artifact(pid, current.number, "chunks") or []
+    if not chunks:
+        raise ValueError(f"no precomputed chunks for visit {current.number}; run the real "
+                         f"pipeline for this visit or import its aria results")
+
+    await bus.emit("visit_started", patient=pid, visit=current.number, date=current.date,
+                   reason=current.reason)
+    brief = await roles.pre_visit_brief(settings, bus, store, pid, before=current.number)
+    visit_history: list = [{"role": "user", "content":
+        f"VISIT START for patient {pid}. Chart (prior appointments only):\n"
+        f"{json.dumps(store.chart(pid, before=current.number))}\n"
+        f"Pre-visit brief:\n{json.dumps(brief)}\n"
+        "Precomputed voice-biomarker ticks follow as the visit is replayed."}]
+
+    pace = 15.0 / max(settings.speed, 1.0)  # ~15s of audio per hop, compressed by SPEED
+    signals_by_chunk: dict = {}
+    observations: list = []
+    for ch in sorted(chunks, key=lambda c: c["chunk"]):
+        idx = ch["chunk"]
+        await bus.emit("chunk_created", patient=pid, chunk=idx,
+                       start_s=ch.get("start", 0.0), end_s=(ch.get("start", 0.0) or 0.0) + 30.0)
+        sigs = [{"name": n, "score": s.get("score"), "level": s.get("level"),
+                 "flagged": s.get("level") in _TIER_FLAGGED}
+                for n, s in (ch.get("signals") or {}).items()]
+        await bus.emit("api_job_created", patient=pid, chunk=idx, model="aria",
+                       job_id=f"replay-{current.number}-{idx}")
+        await bus.emit("api_job_result", patient=pid, chunk=idx, cached=True, signals=sigs,
+                       summary={"overall_level": ch.get("overall_level")})
+        signals_by_chunk[idx] = sigs
+        cumulative = [s for n in sorted(signals_by_chunk) for s in signals_by_chunk[n]]
+        try:
+            obs = await roles.reason_over_chunk(settings, bus, store, pid, idx, "", cumulative,
+                                                brief, history=visit_history)
+            observations.append(obs)
+        except Exception as exc:  # keep the replay alive if a single reasoning tick fails
+            await bus.emit("error", patient=pid, chunk=idx, message=str(exc))
+        await asyncio.sleep(pace)
+
+    ordered = sorted(signals_by_chunk)
+    all_signals = [s for n in ordered for s in signals_by_chunk[n]]
+    store.write_artifact(pid, current.number, "signals", signals_by_chunk[ordered[-1]] if ordered else [])
+    store.write_artifact(pid, current.number, "observations", observations)
+
+    transcript = store.read_artifact(pid, current.number, "transcript")
+    summary = await roles.post_visit_summary(settings, bus, store, pid, current.number,
+                                             [roles._transcript_text(transcript)], all_signals,
+                                             observations, brief, history=visit_history)
+    await roles.build_visit_note(settings, bus, store, pid, current.number,
+                                 transcript, current.icd10, all_signals, history=visit_history)
+    if current.status != "complete":
+        current.status = "complete"
+        store.save_visits(pid, visits)
+    await bus.emit("visit_complete", patient=pid, visit=current.number)
+    return summary
+
+
 async def run_longitudinal(settings: Settings, bus: EventBus, store: PatientStore, pid: str) -> dict:
     return await roles.longitudinal_analysis(settings, bus, store, pid)

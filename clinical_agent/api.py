@@ -59,13 +59,15 @@ def create_app(settings: Settings, store: PatientStore, bus: EventBus,
 
     @app.post("/patients/{pid}/visits/start", status_code=202)
     async def start_visit(pid: str, body: StartVisit):
-        from clinical_agent.session import run_visit
+        from clinical_agent.session import replay_visit, run_visit
 
         async def job():
             try:
-                await run_visit(settings, bus, store, transcriber, amplifier, pid,
-                                Path(body.audio_path) if body.audio_path else None,
-                                visit_number=body.visit)
+                if body.audio_path:  # true live stream from a WAV
+                    await run_visit(settings, bus, store, transcriber, amplifier, pid,
+                                    Path(body.audio_path), visit_number=body.visit)
+                else:  # demo default: replay the appointment from its precomputed aria results
+                    await replay_visit(settings, bus, store, pid, visit_number=body.visit)
             except Exception as exc:
                 await bus.emit("error", patient=pid, message=str(exc))
 
