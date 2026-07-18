@@ -1,4 +1,4 @@
-import json
+
 
 import httpx
 import respx
@@ -42,7 +42,8 @@ async def test_full_flow(tmp_path):
     assert result["signals"][0]["name"] == "mood-disruption"
     analyze_call = respx.calls[2].request
     assert analyze_call.headers["X-Account-ID"] == "acct"
-    assert json.loads(analyze_call.content)["audio_upload_ref"] == "ref-1"
+    # analyze is form-encoded, not JSON
+    assert analyze_call.content == b"audio_upload_ref=ref-1"
 
 
 @respx.mock

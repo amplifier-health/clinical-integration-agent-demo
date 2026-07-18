@@ -75,8 +75,9 @@ class AmplifierClient:
             (await http.put(up["upload_url"], content=chunk.wav_bytes,
                             headers=up.get("required_headers", {}))).raise_for_status()
             await self.limiter.acquire()
+            # NB: analyze expects form encoding, not JSON (verified against the live API)
             job = (await http.post(f"{self.s.amplifier_base_url}/v2/models/haven/analyze",
-                                   json={"audio_upload_ref": up["upload_ref"]},
+                                   data={"audio_upload_ref": up["upload_ref"]},
                                    headers=self._auth)).raise_for_status().json()
             job_id = job.get("id") or job.get("job_id")
             await self.bus.emit("api_job_created", chunk=chunk.index, job_id=job_id)
