@@ -44,9 +44,23 @@ class AmplifierClient:
         self.s = settings
         self.bus = bus
         self.cache_dir = cache_dir or settings.data_dir / "amplifier_cache"
-        self.limiter = _RateLimiter(max_calls=5, per_seconds=60.0)
-        self.poll_interval = 5.0
+        self.limiter = _RateLimiter(max_calls=5, per_seconds=60.0)       # analyze endpoints
+        self.general_limiter = _RateLimiter(max_calls=8, per_seconds=60.0)  # uploads/jobs (10/min cap)
+        self.poll_interval = 10.0
+        self.max_429_retries = 6
         self._auth = {"X-Account-ID": settings.amplifier_account_id, "X-API-Key": settings.amplifier_api_key}
+
+    async def _request(self, http: httpx.AsyncClient, method: str, url: str,
+                       limiter: "_RateLimiter | None", **kw) -> httpx.Response:
+        """Rate-limited request with retry on 429, honoring Retry-After."""
+        for _ in range(self.max_429_retries):
+            if limiter is not None:
+                await limiter.acquire()
+            r = await http.request(method, url, **kw)
+            if r.status_code != 429:
+                return r.raise_for_status()
+            await asyncio.sleep(float(r.headers.get("retry-after", 15)))
+        raise RuntimeError(f"still rate-limited after {self.max_429_retries} retries: {method} {url}")
 
     # -- cache ---------------------------------------------------------
     def _cache_path(self, chunk: AudioChunk) -> Path:
@@ -69,21 +83,20 @@ class AmplifierClient:
                                     signals=cached.get("signals"), summary=cached.get("summary"))
                 return cached
         async with httpx.AsyncClient(timeout=60) as http:
-            up = (await http.post(f"{self.s.amplifier_base_url}/v2/audio/uploads",
-                                  json={"content_type": "audio/wav"},
-                                  headers=self._auth)).raise_for_status().json()
+            up = (await self._request(http, "POST", f"{self.s.amplifier_base_url}/v2/audio/uploads",
+                                      self.general_limiter, json={"content_type": "audio/wav"},
+                                      headers=self._auth)).json()
             (await http.put(up["upload_url"], content=chunk.wav_bytes,
                             headers=up.get("required_headers", {}))).raise_for_status()
-            await self.limiter.acquire()
             # NB: analyze expects form encoding, not JSON (verified against the live API)
-            job = (await http.post(f"{self.s.amplifier_base_url}/v2/models/haven/analyze",
-                                   data={"audio_upload_ref": up["upload_ref"]},
-                                   headers=self._auth)).raise_for_status().json()
+            job = (await self._request(http, "POST", f"{self.s.amplifier_base_url}/v2/models/haven/analyze",
+                                       self.limiter, data={"audio_upload_ref": up["upload_ref"]},
+                                       headers=self._auth)).json()
             job_id = job.get("id") or job.get("job_id")
             await self.bus.emit("api_job_created", chunk=chunk.index, job_id=job_id)
             while True:
-                status = (await http.get(f"{self.s.amplifier_base_url}/v2/jobs/{job_id}",
-                                         headers=self._auth)).raise_for_status().json()
+                status = (await self._request(http, "GET", f"{self.s.amplifier_base_url}/v2/jobs/{job_id}",
+                                              self.general_limiter, headers=self._auth)).json()
                 state = str(status.get("status", "")).lower()
                 if state in _DONE:
                     result = status["result"]

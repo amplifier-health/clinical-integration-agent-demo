@@ -26,6 +26,7 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
     tasks: list[asyncio.Task] = []
 
     async def process(chunk):
+        text = ""
         try:
             text = await transcriber.transcribe(chunk.wav_bytes)
             await bus.emit("transcript", patient=pid, chunk=chunk.index, text=text)
@@ -33,7 +34,7 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
             await results_q.put((chunk.index, text, result.get("signals", [])))
         except Exception as exc:  # keep the visit alive; surface the failure
             await bus.emit("error", patient=pid, chunk=chunk.index, message=str(exc))
-            await results_q.put((chunk.index, "", []))
+            await results_q.put((chunk.index, text, []))  # keep the transcript if we got one
 
     async for chunk in chunk_file(audio_path, speed=settings.speed):
         await bus.emit("chunk_created", patient=pid, chunk=chunk.index,
