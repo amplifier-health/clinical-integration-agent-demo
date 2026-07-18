@@ -1,10 +1,12 @@
 from fastapi.testclient import TestClient
 
+from clinical_agent.amplifier import AmplifierClient
 from clinical_agent.api import create_app
 from clinical_agent.config import Settings
 from clinical_agent.events import EventBus
 from clinical_agent.store import PatientStore
 from clinical_agent.synthetic import generate_synthetic_patient
+from clinical_agent.transcribe import Transcriber
 
 
 async def test_bus_fanout():
@@ -22,7 +24,10 @@ async def test_bus_fanout():
 def test_patients_endpoint(tmp_path):
     store = PatientStore(tmp_path)
     generate_synthetic_patient(store)
-    app = create_app(Settings(), store, EventBus())
+    settings = Settings(data_dir=tmp_path)
+    bus = EventBus()
+    app = create_app(settings, store, bus, Transcriber(mock=True),
+                     AmplifierClient(settings, bus, cache_dir=tmp_path / "cache"))
     client = TestClient(app)
     resp = client.get("/patients")
     assert resp.status_code == 200

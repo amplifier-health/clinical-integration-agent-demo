@@ -1,16 +1,27 @@
+import asyncio
 import json
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
+from clinical_agent.amplifier import AmplifierClient
 from clinical_agent.config import Settings
 from clinical_agent.events import EventBus
 from clinical_agent.store import PatientStore
+from clinical_agent.transcribe import Transcriber
 
 
-def create_app(settings: Settings, store: PatientStore, bus: EventBus) -> FastAPI:
+class StartVisit(BaseModel):
+    audio_path: str
+
+
+def create_app(settings: Settings, store: PatientStore, bus: EventBus,
+               transcriber: Transcriber, amplifier: AmplifierClient) -> FastAPI:
     app = FastAPI(title="Clinical Integration Agent")
     app.state.settings, app.state.store, app.state.bus = settings, store, bus
+    app.state.jobs = []
 
     @app.get("/patients")
     def patients():
@@ -33,5 +44,24 @@ def create_app(settings: Settings, store: PatientStore, bus: EventBus) -> FastAP
                 bus.unsubscribe(q)
 
         return StreamingResponse(stream(), media_type="text/event-stream")
+
+    @app.post("/patients/{pid}/visits/start", status_code=202)
+    async def start_visit(pid: str, body: StartVisit):
+        from clinical_agent.session import run_visit
+
+        async def job():
+            try:
+                await run_visit(settings, bus, store, transcriber, amplifier,
+                                pid, Path(body.audio_path))
+            except Exception as exc:
+                await bus.emit("error", patient=pid, message=str(exc))
+
+        app.state.jobs.append(asyncio.create_task(job()))
+        return {"status": "started"}
+
+    @app.post("/patients/{pid}/longitudinal")
+    async def longitudinal(pid: str):
+        from clinical_agent.session import run_longitudinal
+        return await run_longitudinal(settings, bus, store, pid)
 
     return app
