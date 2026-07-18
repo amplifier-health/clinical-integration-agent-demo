@@ -53,12 +53,21 @@ async def test_emit_stamps_envelope_and_sequences():
     assert e1["phase"] == "telemetry" and e2["phase"] == "reasoning"
 
 
-async def test_emit_rejects_offcontract_payload():
+async def test_emit_is_failsoft_on_bad_payload():
+    # A validation failure must NOT abort the visit (many emit sites are unwrapped):
+    # the frame is still delivered, flagged with contract_error, and logged.
     bus = EventBus()
-    bus.subscribe()
+    q = bus.subscribe()
     start_session(patient_id="p1", visit=1)
+    await bus.emit("visit_note", patient="p1", visit=1, chief_complaint="x")  # missing required
+    e = q.get_nowait()
+    assert e["type"] == "visit_note" and "contract_error" in e
+
+
+def test_validate_is_strict():
+    # contract.validate stays strict — this is the dev-time enforcement the tests rely on.
     with pytest.raises(Exception):
-        await bus.emit("visit_note", patient="p1", visit=1, chief_complaint="x")  # missing required
+        contract.validate("visit_note", {"patient": "p1", "visit": 1, "chief_complaint": "x"})
 
 
 def test_signal_tolerates_extra_api_fields():

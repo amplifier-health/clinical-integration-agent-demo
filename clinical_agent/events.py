@@ -1,10 +1,13 @@
 import asyncio
 import contextvars
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from clinical_agent import contract
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -48,9 +51,17 @@ class EventBus:
             self._subs.remove(q)
 
     async def emit(self, type: str, **data) -> None:
-        # Validate the payload against the registered model (drift → ValidationError),
-        # then stamp the envelope. Wire stays flat for UI back-compat.
-        data = contract.validate(type, data)
+        # Validate against the registered model, then stamp the envelope. Wire stays
+        # flat for UI back-compat. Fail-soft: a validation error must never abort a
+        # live visit (many call sites emit unwrapped), so on drift we log, mark the
+        # frame `contract_error`, and still deliver it. The test suite enforces the
+        # contract strictly via contract.validate — the teeth are at dev time.
+        contract_error = None
+        try:
+            data = contract.validate(type, data)
+        except Exception as exc:
+            contract_error = str(exc).splitlines()[0]
+            log.warning("event %r failed contract validation: %s", type, contract_error)
         ctx = _session.get()
         envelope = {
             "type": type,
@@ -60,6 +71,8 @@ class EventBus:
             "seq": ctx.next_seq() if ctx else None,
             "ts": datetime.now(timezone.utc).isoformat(),
         }
+        if contract_error:
+            envelope["contract_error"] = contract_error
         event = {**envelope, **data}
         for q in list(self._subs):
             q.put_nowait(event)
