@@ -86,17 +86,41 @@ def interpolate_dates(seqs: list[int], known: dict[int, str]) -> dict[int, str]:
     return dates
 
 
+def load_appointments(patient_dir: Path | None) -> dict[int, dict]:
+    """Read per-appointment folders (metadata, transcripts, audio paths) keyed by seq."""
+    appts: dict[int, dict] = {}
+    if patient_dir is None or not patient_dir.exists():
+        return appts
+    for d in sorted(patient_dir.glob("appt_*")):
+        meta_path = d / "metadata.json"
+        if not meta_path.exists():
+            continue
+        meta = json.loads(meta_path.read_text())
+        transcript = []
+        for speaker in ("doctor", "patient"):
+            t = d / "transcript" / f"postdiarized_{speaker}.txt"
+            if t.exists():
+                transcript.append({"speaker": speaker, "text": t.read_text().strip()})
+        audio = {f.stem: str(f.resolve()) for f in (d / "audio").glob("*.wav")} if (d / "audio").exists() else {}
+        appts[meta["seq"]] = {"date": meta.get("date_of_service"), "appt_id": meta.get("appt_id"),
+                              "transcript": transcript, "audio": audio}
+    return appts
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("src", type=Path)
     ap.add_argument("--pid", default="16bbcdbe")
     ap.add_argument("--data-dir", type=Path, default=Path("data"))
+    ap.add_argument("--patient-dir", type=Path, default=None,
+                    help="downloaded patient_<uuid> folder with per-appointment audio/transcripts")
     ap.add_argument("--add-live-visit", action="store_true",
                     help="append a 'planned' visit at the end for the live-demo act")
     args = ap.parse_args()
 
     agg = json.loads((args.src / "aggregate.json").read_text())
     agg_by_seq = {v["seq"]: v for v in agg["visits"]}
+    appts = load_appointments(args.patient_dir)
 
     chunks_by_seq: dict[int, list[dict]] = defaultdict(list)
     for f in sorted((args.src / "aria_results").glob("*.json")):
@@ -104,7 +128,9 @@ def main() -> None:
         chunks_by_seq[r["seq"]].append(r)
 
     seqs = sorted(chunks_by_seq)
-    dates = interpolate_dates(seqs, {s: v["date"] for s, v in agg_by_seq.items()})
+    known_dates = {s: v["date"] for s, v in agg_by_seq.items()}
+    known_dates.update({s: a["date"] for s, a in appts.items() if a.get("date")})
+    dates = interpolate_dates(seqs, known_dates)
 
     store = PatientStore(args.data_dir)
     store.save_patient(PatientMeta(id=args.pid, alias="Demo Patient (de-identified)", age=33, sex="F"))
@@ -131,6 +157,12 @@ def main() -> None:
             store.write_artifact(args.pid, seq, "wellness",
                                  {"wellness": av.get("wellness"), "speech": av.get("speech"),
                                   "mark": av.get("mark")})
+        appt = appts.get(seq)
+        if appt:
+            if appt["transcript"]:
+                store.write_artifact(args.pid, seq, "transcript", appt["transcript"])
+            if appt["audio"]:
+                store.write_artifact(args.pid, seq, "audio", appt["audio"])
 
     if args.add_live_visit:
         last = date.fromisoformat(dates[seqs[-1]])
