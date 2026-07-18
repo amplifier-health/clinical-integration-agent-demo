@@ -4,6 +4,7 @@ import urllib.parse
 import httpx
 
 from clinical_agent.agents.base import ClaudeAgent
+from clinical_agent.clinician_config import current_config
 from clinical_agent.config import Settings
 from clinical_agent.events import EventBus
 from clinical_agent.store import PatientStore
@@ -189,7 +190,8 @@ async def reason_over_chunk(settings: Settings, bus: EventBus, store: PatientSto
         user = (f"Pre-visit brief: {json.dumps(brief)}\n"
                 f"Chunk {chunk_no} transcript: {transcript}\n"
                 f"Cumulative signals so far: {json.dumps(cumulative_signals)}")
-    text = await agent.run(REASONER_SYSTEM, user, tools=tools, effort="low", history=history)
+    system = REASONER_SYSTEM + " " + current_config().depth_prompt()  # explainability depth
+    text = await agent.run(system, user, tools=tools, effort="low", history=history)
     await bus.emit("observation", patient=pid, chunk=chunk_no, text=text)
     return text
 
@@ -248,8 +250,13 @@ async def post_visit_summary(settings: Settings, bus: EventBus, store: PatientSt
                 f"Full transcript: {' '.join(transcript_parts)}\n"
                 f"All chunk signals: {json.dumps(all_signals)}\n"
                 f"Live observations: {json.dumps(observations)}")
-    summary = json.loads(await agent.run(POSTVISIT_SYSTEM, user, output_schema=POSTVISIT_SCHEMA,
+    cfg = current_config()
+    system = POSTVISIT_SYSTEM + " " + cfg.depth_prompt()  # explainability depth
+    summary = json.loads(await agent.run(system, user, output_schema=POSTVISIT_SCHEMA,
                                          history=history))
+    # Screener suggestions are config-controlled: which instruments (if any) to offer is
+    # decided deterministically from the flagged signals, not left to the model.
+    summary["screener_recommendations"] = cfg.screeners_for(all_signals)
     store.write_artifact(pid, visit_no, "summary", summary)
     await bus.emit("visit_summary", patient=pid, visit=visit_no, summary=summary["summary"],
                    vocal_findings=summary["vocal_findings"], discordance=summary["discordance"],

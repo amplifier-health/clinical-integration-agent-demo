@@ -6,16 +6,24 @@ from pathlib import Path
 from clinical_agent.agents import roles
 from clinical_agent.amplifier import AmplifierClient
 from clinical_agent.audio import chunk_file
+from clinical_agent.clinician_config import ClinicianConfig, current_config, set_config
 from clinical_agent.config import Settings
 from clinical_agent.events import EventBus, start_session
 from clinical_agent.store import PatientStore
 from clinical_agent.transcribe import Transcriber
 
 
+def _alert_gate(cfg: ClinicianConfig, cumulative: list, live_count: int) -> bool:
+    """Deterministic alert-fatigue control: a chunk may interrupt live only if some
+    signal clears the sensitivity floor AND we're under the per-visit interruption cap."""
+    return cfg.signal_clears_alert_floor(cumulative) and live_count < cfg.max_live()
+
+
 async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
                     transcriber: Transcriber, amplifier: AmplifierClient,
                     pid: str, audio_path: Path | None = None,
-                    visit_number: int | None = None) -> dict:
+                    visit_number: int | None = None,
+                    config: ClinicianConfig | None = None) -> dict:
     visits = store.list_visits(pid)
     if visit_number is not None:  # demo toggle: replay any appointment as if it were live
         current = next((v for v in visits if v.number == visit_number), None)
@@ -31,6 +39,7 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
             raise ValueError(f"no audio on file for visit {current.number} of patient {pid}")
         audio_path = Path(pick)
     start_session(patient_id=pid, visit=current.number)
+    set_config(config or ClinicianConfig())
     await bus.emit("visit_started", patient=pid, visit=current.number, date=current.date,
                    reason=current.reason)
 
@@ -67,14 +76,18 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
     transcripts: dict = {}
     signals_by_chunk: dict = {}
     observations: list = []
+    cfg = current_config()
+    live_count = 0
     for _ in range(len(tasks)):
         chunk_no, text, signals = await results_q.get()
         transcripts[chunk_no] = text
         signals_by_chunk[chunk_no] = signals
         cumulative = [s for n in sorted(signals_by_chunk) for s in signals_by_chunk[n]]
-        obs = await roles.reason_over_chunk(settings, bus, store, pid, chunk_no, text,
-                                            cumulative, brief, history=visit_history)
-        observations.append(obs)
+        if _alert_gate(cfg, cumulative, live_count):  # alert-sensitivity: interrupt only if it clears the bar
+            obs = await roles.reason_over_chunk(settings, bus, store, pid, chunk_no, text,
+                                                cumulative, brief, history=visit_history)
+            observations.append(obs)
+            live_count += 1
     await asyncio.gather(*tasks)
 
     ordered = sorted(signals_by_chunk)
@@ -116,7 +129,8 @@ def _timed_segments(transcript) -> list[tuple[float, str, str]]:
 
 
 async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
-                       pid: str, visit_number: int | None = None) -> dict:
+                       pid: str, visit_number: int | None = None,
+                       config: ClinicianConfig | None = None) -> dict:
     """Replay a visit from its precomputed per-chunk aria results — no audio, no Whisper, no
     chunker. This is the 'mock the API, speed through the appointment' demo path: the signals
     are the real precomputed ones, the agent reasoning is live."""
@@ -133,6 +147,7 @@ async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
                          f"pipeline for this visit or import its aria results")
 
     start_session(patient_id=pid, visit=current.number)
+    set_config(config or ClinicianConfig())
     await bus.emit("visit_started", patient=pid, visit=current.number, date=current.date,
                    reason=current.reason)
     brief = await roles.pre_visit_brief(settings, bus, store, pid, before=current.number)
@@ -141,6 +156,8 @@ async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
         f"{json.dumps(store.chart(pid, before=current.number))}\n"
         f"Pre-visit brief:\n{json.dumps(brief)}\n"
         "Precomputed voice-biomarker ticks follow as the visit is replayed."}]
+    cfg = current_config()
+    live_count = 0
 
     # Pretend-stream the transcript we already have, time-aligned — standing in for the live ASR
     # we'd run on the scribe's audio stream in the real scenario.
@@ -177,12 +194,14 @@ async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
                        summary={"overall_level": ch.get("overall_level")})
         signals_by_chunk[idx] = sigs
         cumulative = [s for n in sorted(signals_by_chunk) for s in signals_by_chunk[n]]
-        try:
-            obs = await roles.reason_over_chunk(settings, bus, store, pid, idx, new_text, cumulative,
-                                                brief, history=visit_history)
-            observations.append(obs)
-        except Exception as exc:  # keep the replay alive if a single reasoning tick fails
-            await bus.emit("error", patient=pid, chunk=idx, message=str(exc))
+        if _alert_gate(cfg, cumulative, live_count):  # alert-sensitivity gate
+            try:
+                obs = await roles.reason_over_chunk(settings, bus, store, pid, idx, new_text, cumulative,
+                                                    brief, history=visit_history)
+                observations.append(obs)
+                live_count += 1
+            except Exception as exc:  # keep the replay alive if a single reasoning tick fails
+                await bus.emit("error", patient=pid, chunk=idx, message=str(exc))
         await asyncio.sleep(pace)
 
     ordered = sorted(signals_by_chunk)
