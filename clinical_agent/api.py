@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -20,6 +21,12 @@ class StartVisit(BaseModel):
 def create_app(settings: Settings, store: PatientStore, bus: EventBus,
                transcriber: Transcriber, amplifier: AmplifierClient) -> FastAPI:
     app = FastAPI(title="Clinical Integration Agent")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # demo app, no auth; lock down if this outlives the hackathon
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.state.settings, app.state.store, app.state.bus = settings, store, bus
     app.state.jobs = []
 
