@@ -44,6 +44,17 @@ def create_app(settings: Settings, store: PatientStore, bus: EventBus,
     def visits(pid: str):
         return [v.model_dump() for v in store.list_visits(pid)]
 
+    @app.get("/contract")
+    def contract_doc():
+        """The published output contract (version, typed events by phase, clinical vs
+        telemetry, envelope) — what a plugin consumer integrates against."""
+        p = Path(__file__).resolve().parent.parent / "docs" / "contract" / "contract.json"
+        return json.loads(p.read_text()) if p.exists() else {
+            "contract_version": contract.CONTRACT_VERSION,
+            "clinical_types": sorted(contract.CLINICAL_TYPES),
+            "error": "contract.json not generated — run scripts/dump_contract.py",
+        }
+
     @app.get("/patients/{pid}/visits/{visit}/result")
     def visit_result(pid: str, visit: int):
         """The folded snapshot of a visit — the same clinical outputs the stream

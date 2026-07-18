@@ -246,6 +246,16 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .uc.on .sw{background:var(--ambient)}.uc.on .sw::after{left:15px}
 .uc .ucn{font-size:13px;font-weight:600;color:var(--ink)}
 .uc.locked{opacity:.55;cursor:not-allowed}
+.uc .ucn small{display:block;font-weight:500;color:var(--muted);font-size:11px;letter-spacing:0}
+.ver-pill{font-size:11px;font-weight:700;color:var(--amp-brown);background:color-mix(in oklab,var(--amp-tan) 24%,#fff);
+  border:1px solid color-mix(in oklab,var(--amp-tan) 55%,#fff);border-radius:999px;padding:2px 9px;vertical-align:middle;margin-left:6px}
+.io-out{display:flex;flex-direction:column;gap:8px}
+.io-row .ph-badge{display:inline-block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;
+  padding:1px 6px;border-radius:5px;margin-left:6px;background:var(--ambient-soft);color:var(--ambient);vertical-align:middle}
+.depthrow{display:flex;align-items:center;gap:12px;margin-top:12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg button{padding:6px 13px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.seg button.on{background:var(--amp-brown);color:#fff}
 .integ-foot{padding:16px 28px 24px;border-top:1px solid var(--line-2);display:flex;justify-content:flex-end}
 </style></head>
 <body>
@@ -306,8 +316,8 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 <div class="integ" id="integ">
   <div class="integ-card">
     <div class="integ-hd">
-      <div><div class="ititle">Ambient scribe integration</div>
-        <div class="isub">Drop-in voice-biomarker layer · the scribe streams audio, we return signals</div></div>
+      <div><div class="ititle">Ambient scribe integration <span class="ver-pill" id="verPill">contract v—</span></div>
+        <div class="isub">Drop-in voice-biomarker layer · the scribe streams audio, we return typed events</div></div>
       <button class="x" id="integX">✕</button>
     </div>
     <div class="integ-body">
@@ -321,11 +331,10 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
         </div>
         <div class="io-mid">→</div>
         <div class="io-col">
-          <div class="io-tag ours">Us&nbsp;→&nbsp;scribe (SSE)</div>
-          <div class="io-row"><b>observation</b> live per-window note</div>
-          <div class="io-row"><b>api_job_result</b> vocal-biomarker signals</div>
-          <div class="io-row"><b>visit_note</b> SOAP draft (transcript + codes)</div>
-          <div class="io-row"><b>chart_draft · topics</b> chart-update drafts &amp; next-visit follow-ups</div>
+          <div class="io-tag ours">Us&nbsp;→&nbsp;scribe · typed SSE events</div>
+          <div class="io-out" id="ioOut"><div class="io-row">loading contract…</div></div>
+          <div class="io-note">Every frame carries the envelope <code>type · contract_version · phase · session_id · seq · ts</code>.
+            A folded snapshot is also available at <code>GET /patients/{id}/visits/{n}/result</code>.</div>
         </div>
       </div>
 
@@ -344,10 +353,16 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
       </div>
 
       <div class="cfg">
-        <div class="chd">Enabled use cases <span class="cfg-owner">· configured per clinic (contract owned by Vijay)</span></div>
-        <div class="cfg-grid" id="cfgGrid"></div>
-        <div class="cnote">The plugin ships one model per enabled use case. This demo runs <b>aria</b>; the same
-          contract fans out to additional models by flipping these on.</div>
+        <div class="chd">Enabled clinical outputs <span class="cfg-owner">· the sellable contract surface (v<span id="cfgVer">—</span>)</span></div>
+        <div class="cfg-grid" id="cfgGrid"><div class="io-row">loading…</div></div>
+        <div class="depthrow">
+          <span class="chd" style="margin:0">Explanation depth</span>
+          <div class="seg" id="depthSeg">
+            <button data-d="minimal">minimal</button><button data-d="standard" class="on">standard</button><button data-d="detailed">detailed</button>
+          </div>
+        </div>
+        <div class="cnote">These are the contract's clinical event types (v<span id="cfgVer2">—</span>); telemetry &amp; reasoning
+          events stream separately. Depth controls the <code>explanation</code> block (summary → +confidence → +drivers/trend).</div>
       </div>
     </div>
     <div class="integ-foot"><button class="btn play" id="integGo">Enter the demo →</button></div>
@@ -567,25 +582,34 @@ $('wave').innerHTML=Array.from({length:34},()=>'<i></i>').join('');
 $('recBtn').innerHTML=dotIcon;
 $('recBtn').onclick=()=>{ streaming?stopVisit():play(); };
 
-// Integration & config overlay — the plugin contract + use-case selection, shown first.
-const USE_CASES=[
-  {id:'aria',   name:'aria · women’s health', on:true, locked:true},
-  {id:'haven',  name:'haven · behavioral health', on:false},
-  {id:'breath', name:'breath · respiratory',      on:false},
-  {id:'cardio', name:'cardio · cardiometabolic',  on:false},
-];
-(function buildCfg(){
-  const g=$('cfgGrid');
-  USE_CASES.forEach(u=>{
-    const el=document.createElement('div');
-    el.className='uc'+(u.on?' on':'')+(u.locked?' locked':'');
+// Integration & config overlay — rendered FROM Vijay's published contract (GET /contract),
+// so the screen always matches the enforced event schema, not a hand-written list.
+const PRETTY=s=>s.replace(/_/g,' ');
+function renderContract(c){
+  const ver=c.contract_version||'—';
+  $('verPill').textContent='contract v'+ver; $('cfgVer').textContent=ver; $('cfgVer2').textContent=ver;
+  const ev=c.events||{}, clin=new Set(c.clinical_types||[]);
+  // "Us → scribe": the clinical output events, each tagged with its lifecycle phase.
+  const out=$('ioOut'); out.innerHTML='';
+  [...clin].sort((a,b)=>((ev[a]||{}).phase||'').localeCompare((ev[b]||{}).phase||'')||a.localeCompare(b))
+    .forEach(t=>{ const row=document.createElement('div'); row.className='io-row';
+      const b=document.createElement('b'); b.textContent=t;
+      const ph=document.createElement('span'); ph.className='ph-badge'; ph.textContent=(ev[t]||{}).phase||'';
+      row.append(b,ph); out.appendChild(row); });
+  // Config: each clinical output as an enable toggle (all on = full contract).
+  const g=$('cfgGrid'); g.innerHTML='';
+  [...clin].sort().forEach(t=>{ const el=document.createElement('div'); el.className='uc on';
     const sw=document.createElement('span'); sw.className='sw';
-    const nm=document.createElement('span'); nm.className='ucn'; nm.textContent=u.name+(u.locked?' (demo)':'');
-    el.append(sw,nm);
-    if(!u.locked) el.onclick=()=>el.classList.toggle('on');
-    g.appendChild(el);
-  });
-})();
+    const nm=document.createElement('span'); nm.className='ucn';
+    nm.innerHTML=''; nm.append(document.createTextNode(PRETTY(t)));
+    const sub=document.createElement('small'); sub.textContent=(ev[t]||{}).phase||''; nm.append(sub);
+    el.append(sw,nm); el.onclick=()=>el.classList.toggle('on'); g.appendChild(el); });
+}
+fetch(BASE+'/contract').then(r=>r.ok?r.json():null).then(c=>{ if(c) renderContract(c);
+  else $('cfgGrid').innerHTML='<div class="io-row">contract unavailable — is the backend running?</div>'; })
+  .catch(()=>{ $('cfgGrid').innerHTML='<div class="io-row">contract unavailable — is the backend running?</div>'; });
+$('depthSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  $('depthSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); });
 const showInteg=v=>$('integ').classList.toggle('open',v);
 $('integBtn').onclick=()=>showInteg(true);
 $('integX').onclick=()=>showInteg(false);
