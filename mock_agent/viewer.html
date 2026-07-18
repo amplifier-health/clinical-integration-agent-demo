@@ -15,9 +15,21 @@
 }
 *{box-sizing:border-box;margin:0;-webkit-font-smoothing:antialiased}
 html,body{height:100%}
-body{font-family:var(--font);background:
-   radial-gradient(120% 80% at 100% 0%,#f6efe6 0%,var(--paper) 55%);
-   color:var(--ink);font-size:15px;line-height:1.5;overflow:hidden}
+/* Amplifier brand palette (from the brand kit): deep brown + tan neutrals, spectrogram accents */
+:root{
+  --amp-brown:#4b2700; --amp-ink:#231200; --amp-tan:#b79862; --amp-sand:#dbccb1; --amp-cream:#F3EEE6;
+  --amp-purple:#9c76ff; --amp-blue:#99e4ff; --amp-coral:#ff6173; --amp-gold:#ffc163;
+}
+body{font-family:var(--font);color:var(--ink);font-size:15px;line-height:1.5;overflow:hidden;
+   background:
+     radial-gradient(120% 90% at 100% -10%,#efe4d4 0%,var(--amp-cream) 48%,#eaddc9 100%);
+   position:relative}
+/* faint Amplifier brandmark watermark + a spectrogram accent stripe along the top edge */
+body::before{content:"";position:fixed;right:-60px;bottom:-80px;width:460px;height:460px;
+   background:url("assets/amplifier-brandmark.png") center/contain no-repeat;opacity:.05;
+   pointer-events:none;z-index:0}
+body::after{content:"";position:fixed;left:0;right:0;top:0;height:3px;z-index:30;pointer-events:none;
+   background:linear-gradient(90deg,var(--amp-purple),var(--amp-blue),var(--amp-gold),var(--amp-coral))}
 button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}
 ::selection{background:#f7c9bd}
 .app{height:100vh;display:flex;flex-direction:column}
@@ -25,10 +37,13 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 /* ---------- top bar ---------- */
 .topbar{display:flex;align-items:center;gap:14px;padding:13px 22px;border-bottom:1px solid var(--line);
   background:color-mix(in oklab,var(--panel) 80%,transparent);backdrop-filter:blur(8px);z-index:20}
-.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em}
-.brand .mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(150deg,var(--coral),var(--coral-deep));
-  color:#fff;display:grid;place-items:center;font-weight:800;font-size:16px;box-shadow:0 4px 10px -3px rgba(200,50,25,.55)}
-.brand small{color:var(--muted);font-weight:500;letter-spacing:0}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.01em;color:var(--amp-ink)}
+.brand .amp-logo{height:26px;width:auto;display:block}
+.brand small{color:var(--amp-tan);font-weight:600;letter-spacing:0}
+.integration-tag{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;
+  color:var(--amp-brown);background:color-mix(in oklab,var(--amp-tan) 26%,#fff);
+  border:1px solid color-mix(in oklab,var(--amp-tan) 55%,#fff);border-radius:999px;padding:4px 11px}
+.integration-tag .abridge{color:var(--coral-2);font-weight:800}
 .topbar .sep{width:1px;height:22px;background:var(--line);margin:0 2px}
 .rec-state{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);font-weight:600}
 .rec-dot{width:9px;height:9px;border-radius:50%;background:#c9c0b6}
@@ -46,7 +61,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .speed input{width:52px;padding:5px 7px;border:1px solid var(--line);border-radius:8px;font-family:inherit;background:var(--surface);color:var(--ink)}
 
 /* ---------- stage ---------- */
-.stage{flex:1;display:grid;grid-template-columns:344px 1fr 372px;gap:22px;padding:22px;overflow:hidden;min-height:0}
+.stage{flex:1;display:grid;grid-template-columns:344px 1fr;gap:22px;padding:22px;overflow:hidden;min-height:0}
 .col{min-height:0;display:flex;flex-direction:column}
 
 /* ---------- mobile phone ---------- */
@@ -188,18 +203,63 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .opener.pinging .d{animation:pulse2 1.2s infinite}
 @keyframes pulse2{0%,100%{opacity:1}50%{opacity:.3}}
 @media(max-width:1180px){.stage{grid-template-columns:300px 1fr}.ai{display:none}}
+/* integration & config overlay */
+.integ{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  background:color-mix(in oklab,var(--ink) 42%,transparent);backdrop-filter:blur(7px);padding:26px}
+.integ.open{display:flex}
+.integ-card{width:min(920px,96vw);max-height:92vh;overflow:auto;background:var(--panel);
+  border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.integ-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  padding:24px 28px 18px;border-bottom:1px solid var(--line-2);position:sticky;top:0;
+  background:linear-gradient(var(--panel),color-mix(in oklab,var(--panel) 80%,transparent));backdrop-filter:blur(6px)}
+.integ-hd .ititle{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.integ-hd .isub{color:var(--ink-2);font-size:13.5px;margin-top:3px}
+.integ-hd .x{font-size:16px;color:var(--muted);padding:4px 8px;border-radius:8px}
+.integ-hd .x:hover{background:var(--line-2);color:var(--ink)}
+.integ-body{padding:22px 28px;display:flex;flex-direction:column;gap:22px}
+.io{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:stretch}
+.io-col{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:15px 16px;display:flex;flex-direction:column;gap:8px}
+.io-mid{display:flex;align-items:center;color:var(--muted);font-size:26px;font-weight:700}
+.io-tag{align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+  padding:4px 9px;border-radius:999px;margin-bottom:2px}
+.io-tag.scribe{background:var(--gap-soft);color:var(--gap)}
+.io-tag.ours{background:var(--ambient-soft);color:var(--ambient)}
+.io-row{font-size:13.5px;color:var(--ink-2)}.io-row b{color:var(--ink);font-weight:700}
+.io-note{margin-top:auto;font-size:12px;color:var(--muted);line-height:1.45;padding-top:4px}
+.chd{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);margin-bottom:10px}
+.cfg-owner{font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted)}
+.cadence{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
+.ctrack{position:relative;height:46px;margin:6px 0 12px;border-radius:10px;
+  background:repeating-linear-gradient(90deg,var(--line-2) 0 1px,transparent 1px 60px)}
+.cw{position:absolute;top:7px;height:20px;border-radius:6px;font-size:10.5px;font-weight:700;
+  color:var(--coral-ink);display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(150deg,var(--coral),var(--coral-2));opacity:.9;box-shadow:0 1px 0 rgba(0,0,0,.06)}
+.cw:nth-child(even){top:29px;opacity:.66}
+.ctick{position:absolute;bottom:-2px;width:2px;height:12px;background:var(--ambient);border-radius:2px}
+.cnote{font-size:12.5px;color:var(--ink-2);line-height:1.5}.cnote code{background:var(--line-2);padding:1px 5px;border-radius:5px;font-size:12px}
+.cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:9px}
+.uc{display:flex;align-items:center;gap:9px;padding:10px 12px;background:var(--surface);
+  border:1px solid var(--line);border-radius:12px;cursor:pointer;user-select:none;transition:.15s}
+.uc:hover{border-color:var(--ambient)}
+.uc .sw{width:32px;height:19px;border-radius:999px;background:var(--line);position:relative;flex:none;transition:.18s}
+.uc .sw::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:.18s}
+.uc.on .sw{background:var(--ambient)}.uc.on .sw::after{left:15px}
+.uc .ucn{font-size:13px;font-weight:600;color:var(--ink)}
+.uc.locked{opacity:.55;cursor:not-allowed}
+.integ-foot{padding:16px 28px 24px;border-top:1px solid var(--line-2);display:flex;justify-content:flex-end}
 </style></head>
 <body>
 <div class="app">
   <div class="topbar">
-    <div class="brand"><span class="mark">a</span><span>Ambient&nbsp;Intelligence <small>· voice-biomarker layer for the visit</small></span></div>
+    <div class="brand"><img class="amp-logo" src="assets/amplifier-brandmark.png" alt="Amplifier"><span>Amplifier <small>· voice-biomarker layer</small></span></div>
+    <div class="sep"></div>
+    <span class="integration-tag">◇ Client integration example — <span class="abridge">Abridge</span> note &amp; in-visit recording (mock)</span>
     <div class="sep"></div>
     <div class="rec-state" id="recState"><span class="rec-dot"></span><span id="recLabel">Ready</span></div>
     <div class="spacer"></div>
     <div class="speed">visit <select id="visitPick" style="padding:5px 7px;border:1px solid var(--line);border-radius:8px;font-family:inherit;background:var(--surface);color:var(--ink);max-width:200px"><option value="">planned (today)</option></select></div>
     <div class="speed">speed <input id="speed" type="number" value="20" min="1" max="80"></div>
-    <button class="btn ghost" id="reasonBtn">◐ Agent reasoning</button>
-    <button class="btn play" id="playBtn">● Start visit</button>
+    <button class="btn ghost" id="integBtn">◧ Integration &amp; config</button>
   </div>
 
   <div class="stage">
@@ -239,24 +299,58 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
       <div class="note-body" id="noteBody"></div>
     </div></div>
 
-    <!-- ABRIDGE AI -->
-    <div class="col"><div class="ai">
-      <div class="ai-hd">
-        <svg class="spark" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.6L19.5 9 14 11l-2 6-2-6-5.5-2 5.6-1.4z"/></svg>
-        <b>Ambient AI</b><span class="chip" id="aiPt">— · current encounter</span>
-      </div>
-      <div class="ai-body" id="aiBody">
-        <div class="ai-empty" id="aiEmpty">
-          <svg class="big" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.6L19.5 9 14 11l-2 6-2-6-5.5-2 5.6-1.4z"/></svg>
-          <p>Care-gap follow-ups and matched clinical trials surface here after the visit.</p>
+  </div>
+</div>
+
+<!-- integration & config overlay (shown first — the plugin contract + what a clinician configures) -->
+<div class="integ" id="integ">
+  <div class="integ-card">
+    <div class="integ-hd">
+      <div><div class="ititle">Ambient scribe integration</div>
+        <div class="isub">Drop-in voice-biomarker layer · the scribe streams audio, we return signals</div></div>
+      <button class="x" id="integX">✕</button>
+    </div>
+    <div class="integ-body">
+      <div class="io">
+        <div class="io-col">
+          <div class="io-tag scribe">Scribe&nbsp;→&nbsp;us</div>
+          <div class="io-row"><b>audio/pcm</b> streamed frames (16&nbsp;kHz mono)</div>
+          <div class="io-row"><b>visit.start</b> patient id, encounter id</div>
+          <div class="io-row"><b>visit.end</b> stop signal</div>
+          <div class="io-note">That's the whole surface the scribe implements. No model calls, no chunking, no state on their side.</div>
+        </div>
+        <div class="io-mid">→</div>
+        <div class="io-col">
+          <div class="io-tag ours">Us&nbsp;→&nbsp;scribe (SSE)</div>
+          <div class="io-row"><b>observation</b> live per-window note</div>
+          <div class="io-row"><b>api_job_result</b> vocal-biomarker signals</div>
+          <div class="io-row"><b>visit_note</b> SOAP draft (transcript + codes)</div>
+          <div class="io-row"><b>chart_draft · topics</b> chart-update drafts &amp; next-visit follow-ups</div>
         </div>
       </div>
-      <div class="prompts">
-        <button class="pchip">Was the androgen signal addressed this visit?</button>
-        <button class="pchip">What care gaps should be revisited next time?</button>
+
+      <div class="cadence">
+        <div class="chd">Streaming cadence · we own the buffering</div>
+        <div class="ctrack">
+          <span class="cw" style="left:0%;width:30%">30s bucket</span>
+          <span class="cw" style="left:15%;width:30%">30s bucket</span>
+          <span class="cw" style="left:30%;width:30%">30s bucket</span>
+          <span class="cw" style="left:45%;width:30%">30s bucket</span>
+          <span class="ctick" style="left:15%"></span><span class="ctick" style="left:30%"></span>
+          <span class="ctick" style="left:45%"></span><span class="ctick" style="left:60%"></span>
+        </div>
+        <div class="cnote">Incoming audio fills a rolling <b>30-second</b> bucket; every <b>15&nbsp;seconds</b> we
+          <code>POST /v2/models/&lt;model&gt;/analyze</code> and stream the result back. Overlap keeps signals stable across window edges.</div>
       </div>
-      <div class="askbar"><input placeholder="Ask about this encounter…"><button class="send"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
-    </div></div>
+
+      <div class="cfg">
+        <div class="chd">Enabled use cases <span class="cfg-owner">· configured per clinic (contract owned by Vijay)</span></div>
+        <div class="cfg-grid" id="cfgGrid"></div>
+        <div class="cnote">The plugin ships one model per enabled use case. This demo runs <b>aria</b>; the same
+          contract fans out to additional models by flipping these on.</div>
+      </div>
+    </div>
+    <div class="integ-foot"><button class="btn play" id="integGo">Enter the demo →</button></div>
   </div>
 </div>
 
@@ -290,7 +384,6 @@ function setRecUI(state){ // 'recording' | 'done'
   $('recHint').textContent=rec?'Recording — tap to stop':(state==='done'?'Visit complete':'Tap to record');
   $('recState').classList.toggle('live',rec);
   $('recLabel').textContent=rec?'Recording · analyzing':(state==='done'?'Visit complete':'Ready');
-  $('playBtn').disabled=rec; $('playBtn').textContent=rec?'● Recording…':'● Start visit';
   if(!rec)$('opener').classList.remove('pinging');
 }
 function stopVisit(){ if(es)es.close(); clearInterval(timer); setRecUI('done'); }
@@ -402,12 +495,6 @@ function addFollow(d){
   el.innerHTML=`<span class="mk">${d.discussed?'✓':'!'}</span><div style="flex:1"><div class="txt">${d.text}</div><div class="why">${d.why||''}</div></div>${d.discussed?'':'<span class="tagg">CARE GAP</span>'}`;
   $('planMount').appendChild(el);
 }
-function addTrial(d){
-  const em=$('aiEmpty'); if(em)em.remove();
-  const el=document.createElement('div');el.className='trial';
-  el.innerHTML=`<div class="top"><span class="nct">${d.nct_id}</span></div><div class="ttl">${d.title}</div><div class="why">${d.why_relevant||''}</div><div class="elig">▸ ${d.eligibility_hint||''}</div>`;
-  $('aiBody').appendChild(el);
-}
 function tickTimer(){secs++;const m=Math.floor(secs/60),s=secs%60;$('mTimer').textContent=`${m}:${s<10?'0':''}${s}`;}
 
 /* ---- backend-event adapters (map the backend contract onto the UI panels) ---- */
@@ -424,24 +511,23 @@ function addObservation(text){ // live per-chunk reasoner output → mobile sugg
   const m=t.match(/^(.*?[.!?])\s+(.*)$/); const title=(m?m[1]:t).slice(0,96); const rest=m?m[2]:'';
   addTopic({title,rationale:rest,source:'voice'});
 }
+const _FLAG=new Set(['consider','moderate','elevated','high']);
 function addSummary(d){
+  // Precision over recall: the assessment line, only the flagged vocal findings, and a real
+  // voice/words discordance. Screeners and low-tier signals are intentionally dropped.
   addAddendum({section:'Assessment',text:d.summary||''});
-  (d.vocal_findings||[]).forEach(v=>addAddendum({section:'Vocal finding',text:`${v.sign} — ${v.level}: ${v.note}`}));
-  if(d.discordance && !/^\s*none/i.test(d.discordance)) addAddendum({section:'Voice–words discordance',text:d.discordance});
-  (d.screener_recommendations||[]).forEach(s=>addFollow({text:s,why:'Recommended screener',discussed:true}));
+  (d.vocal_findings||[]).filter(v=>_FLAG.has((v.level||'').toLowerCase()))
+    .forEach(v=>addAddendum({section:'Vocal finding',text:`${v.sign} — ${v.level}: ${v.note}`}));
+  if(d.discordance && !/^\s*(none|no\b)/i.test(d.discordance))
+    addAddendum({section:'Voice–words discordance',text:d.discordance});
 }
-function addChartDraft(d){ (d.items||[]).forEach(it=>addAddendum({section:'Chart update · draft',text:`${it.description}${it.rationale?' — '+it.rationale:''}`})); }
-function addNextTopics(d){ (d.items||[]).forEach(t=>addFollow({text:t,why:'To raise at the next visit',discussed:false})); }
-function addLong(d){ const em=$('aiEmpty'); if(em)em.remove();
-  const el=document.createElement('div');el.className='trial';
-  el.innerHTML=`<div class="top"><span class="nct" style="background:#e7f0ea;color:#2f7d54;border-color:#bfe0cc">early detection</span></div>`+
-    `<div class="ttl">${d.condition}</div><div class="why">Voice flagged at visit ${d.first_voice_flag_visit}; first coded at visit ${d.first_coded_visit} — <b>${d.visits_early} visits earlier</b>.</div>`;
-  $('aiBody').appendChild(el); }
+function addChartDraft(d){ (d.items||[]).slice(0,3).forEach(it=>addAddendum({section:'Chart update · draft',text:`${it.description}${it.rationale?' — '+it.rationale:''}`})); }
+function addNextTopics(d){ (d.items||[]).slice(0,3).forEach(t=>addFollow({text:t,why:'To raise at the next visit',discussed:false})); }
 
 function play(){
   if(es)es.close(); sugSeen.clear(); tokAgent=null;
   $('sugList').innerHTML='<div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div><div class="s">Analyzing the conversation</div></div></div>';
-  $('aiBody').innerHTML='';$('rlog').innerHTML='';seedNote();
+  $('rlog').innerHTML='';seedNote();
   secs=0;$('mTimer').textContent='0:00';clearInterval(timer);timer=setInterval(tickTimer,1000);
   setRecUI('recording');
   let ended=false;  // so a normal stream close doesn't look like a connection error
@@ -466,8 +552,6 @@ function play(){
   on('visit_summary',addSummary);
   on('chart_draft',addChartDraft);
   on('topics',addNextTopics);
-  on('trial_match',addTrial);
-  on('longitudinal_delta',addLong);
   on('longitudinal_narrative',d=>addStep({phase:'post',message:d.text||''}));
   on('error',d=>addStep({phase:'gap',message:'error: '+(d.message||'')}));
   on('visit_complete',()=>{ ended=true; clearInterval(timer); setRecUI('done'); if(es)es.close(); });
@@ -481,9 +565,32 @@ function play(){
 // build waveform bars + initial record button
 $('wave').innerHTML=Array.from({length:34},()=>'<i></i>').join('');
 $('recBtn').innerHTML=dotIcon;
-$('playBtn').onclick=()=>{ streaming?stopVisit():play(); };
 $('recBtn').onclick=()=>{ streaming?stopVisit():play(); };
-$('reasonBtn').onclick=()=>$('reason').classList.toggle('open');
+
+// Integration & config overlay — the plugin contract + use-case selection, shown first.
+const USE_CASES=[
+  {id:'aria',   name:'aria · women’s health', on:true, locked:true},
+  {id:'haven',  name:'haven · behavioral health', on:false},
+  {id:'breath', name:'breath · respiratory',      on:false},
+  {id:'cardio', name:'cardio · cardiometabolic',  on:false},
+];
+(function buildCfg(){
+  const g=$('cfgGrid');
+  USE_CASES.forEach(u=>{
+    const el=document.createElement('div');
+    el.className='uc'+(u.on?' on':'')+(u.locked?' locked':'');
+    const sw=document.createElement('span'); sw.className='sw';
+    const nm=document.createElement('span'); nm.className='ucn'; nm.textContent=u.name+(u.locked?' (demo)':'');
+    el.append(sw,nm);
+    if(!u.locked) el.onclick=()=>el.classList.toggle('on');
+    g.appendChild(el);
+  });
+})();
+const showInteg=v=>$('integ').classList.toggle('open',v);
+$('integBtn').onclick=()=>showInteg(true);
+$('integX').onclick=()=>showInteg(false);
+$('integGo').onclick=()=>showInteg(false);
+showInteg(true);  // the integration screen is what we open on
 $('opener').onclick=()=>{$('reason').classList.add('open');$('opener').classList.remove('pinging');};
 $('reasonX').onclick=()=>$('reason').classList.remove('open');
 </script>

@@ -1,7 +1,4 @@
 import json
-import urllib.parse
-
-import httpx
 
 from clinical_agent.agents.base import ClaudeAgent
 from clinical_agent.config import Settings
@@ -23,16 +20,23 @@ PREVISIT_SYSTEM = (
 
 REASONER_SYSTEM = (
     "You are a clinical reasoning agent running during a live visit. You receive vocal biomarker "
-    "signals for the latest audio chunk plus the running transcript. In one or two sentences, note "
-    "anything a clinician should know now — especially discordance between the patient's words and "
-    "their vocal signals, or trends across chunks. Use the read_chart tool if chart history would "
-    "change your assessment. If nothing is notable, say so in a few words. " + _NEVER_DIAGNOSE
+    "signals for the latest audio window plus the running transcript. "
+    "Default to silence: reply with exactly 'nothing notable' UNLESS there is a specific, "
+    "high-confidence, actionable signal a clinician must know right now — a clear discordance "
+    "between the patient's words and their vocal signals, or a strong emerging trend. When you do "
+    "speak, use at most one sentence; never restate the transcript or enumerate every signal. "
+    "Favor precision over recall — a missed minor cue is fine; a noisy false alarm is not. "
+    "Use the read_chart tool only if chart history would change your assessment. " + _NEVER_DIAGNOSE
 )
 
 POSTVISIT_SYSTEM = (
     "You are a post-visit documentation agent. Produce a visit summary with a vocal-findings "
     "section, transcript findings, any voice/words discordance, screener recommendations, a chart "
-    "update draft for clinician approval, and topics to raise at the next visit. " + _NEVER_DIAGNOSE
+    "update draft for clinician approval, and topics to raise at the next visit. "
+    "Be high-precision and conservative: include only findings you are confident about, and only "
+    "vocal findings that are actually flagged (consider/moderate/elevated) — omit weak, borderline, "
+    "or speculative signals entirely. Prefer a few strong items over a long list; a clinician's "
+    "attention is scarce. " + _NEVER_DIAGNOSE
 )
 
 VISITNOTE_SYSTEM = (
@@ -194,48 +198,6 @@ async def reason_over_chunk(settings: Settings, bus: EventBus, store: PatientSto
     return text
 
 
-def _clinical_trials_tool(bus: EventBus, pid: str):
-    """A tool that searches ClinicalTrials.gov and emits a `trial_match` per result."""
-    async def _search(inp: dict) -> str:
-        condition = inp.get("condition", "")
-        n = int(inp.get("max_results", 3))
-        async def _q(recruiting_only: bool):
-            # NB: no `fields` filter — the v2 API rejects display-name fields (400), and the full
-            # study object carries protocolSection.identificationModule, which we read below.
-            params = {"query.cond": condition, "pageSize": n}
-            if recruiting_only:
-                params["filter.overallStatus"] = "RECRUITING"
-            url = "https://clinicaltrials.gov/api/v2/studies?" + urllib.parse.urlencode(params)
-            async with httpx.AsyncClient(timeout=30) as h:
-                r = await h.get(url)
-                r.raise_for_status()
-                return r.json()
-        try:
-            data = await _q(True)
-            if not data.get("studies"):
-                data = await _q(False)  # fall back to any status so we still surface matches
-        except Exception as exc:
-            return f"trial search failed: {exc}"
-        found = []
-        for st in data.get("studies", [])[:n]:
-            idm = st.get("protocolSection", {}).get("identificationModule", {})
-            nct, title = idm.get("nctId", "?"), (idm.get("briefTitle") or "(untitled)")
-            await bus.emit("trial_match", patient=pid, nct_id=nct, title=title,
-                           why_relevant=f"Matched on '{condition}' (the undiscussed gap).",
-                           eligibility_hint=condition)
-            found.append(f"{nct}: {title}")
-        return "found: " + " | ".join(found) if found else "no trials found"
-
-    return {"search_clinical_trials": ({
-        "name": "search_clinical_trials",
-        "description": "Search ClinicalTrials.gov for trials relevant to a condition the visit did "
-                       "NOT focus on. Emits a trial_match per result.",
-        "input_schema": {"type": "object", "additionalProperties": False,
-                         "properties": {"condition": {"type": "string"},
-                                        "max_results": {"type": "integer"}},
-                         "required": ["condition"]}}, _search)}
-
-
 async def post_visit_summary(settings: Settings, bus: EventBus, store: PatientStore, pid: str,
                              visit_no: int, transcript_parts: list, all_signals: list,
                              observations: list, brief: dict, history: list | None = None) -> dict:
@@ -257,17 +219,6 @@ async def post_visit_summary(settings: Settings, bus: EventBus, store: PatientSt
     await bus.emit("chart_draft", patient=pid, visit=visit_no, items=summary["chart_update_draft"])
     await bus.emit("topics", patient=pid, visit=visit_no, items=summary["next_visit_topics"])
 
-    # Reuses the visit conversation (shared history) to search trials for the undiscussed gap.
-    if not settings.mock_claude:
-        gap = "; ".join(summary.get("next_visit_topics", [])) or summary.get("discordance", "")
-        if gap:
-            trials = ClaudeAgent("trials", settings, bus)
-            await trials.run(
-                POSTVISIT_SYSTEM,
-                f"For the follow-up gap you identified (\"{gap}\"), call search_clinical_trials to "
-                "surface relevant trials the clinician might consider. Search the single most "
-                "important undiscussed condition.",
-                tools=_clinical_trials_tool(bus, pid), effort="low", history=history)
     return summary
 
 
