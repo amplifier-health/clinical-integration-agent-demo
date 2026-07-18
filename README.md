@@ -125,33 +125,48 @@ An Abridge-style clinician UI that speaks the **same SSE event contract as the b
 - **`pipeline/`**, **`viz/`** — offline tools: chunk audio → score via the Amplifier API →
   aggregate; and an interactive per-visit voice-biomarker trajectory dashboard.
 
-**Run against the real backend:** start `uvicorn clinical_agent.main:app` (see Quickstart),
-serve `mock_agent/viewer.html` (any static server), open it with `?base=http://localhost:8000`,
-and tap record — the phone triggers `POST /patients/{id}/visits/start` and the panels fill from
-the live agent. **Run the offline demo:** `python3 mock_agent/server.py` then open its URL.
+**Run against the real backend** (two servers — the API and the static viewer):
+
+```bash
+# API on :8000 (reads ANTHROPIC_API_KEY from .env; no audio, no Whisper, no live Amplifier calls)
+SPEED=40 .venv/bin/uvicorn clinical_agent.main:app --port 8000
+# viewer on :8080 (any static server)
+python3 -m http.server 8080 --directory mock_agent
+```
+
+Then open `http://localhost:8080/viewer.html?base=http://localhost:8000&pid=demo-patient` and
+pick a visit. `:8000` is the API — opening it directly shows "not found," which is expected; the
+page lives on `:8080` and the `base` param points it at the API. Tap record and the phone triggers
+`POST /patients/{id}/visits/start`, which **replays that appointment** (below). **Fully offline
+demo (no backend, no key):** `python3 mock_agent/server.py` then open its URL.
+
+## How a visit runs (replay, not live audio)
+
+A demo visit is replayed from precomputed data — no audio is streamed and Whisper is never
+called. `replay_visit` reads the appointment's stored per-chunk `aria` results and emits them on
+the same SSE contract as a live visit, while the diarized transcript we already have is
+pretend-streamed **time-aligned** to each tick (standing in for the live ASR we'd run on the
+scribe's audio in production). The **agent reasoning is real Claude**; only the audio stream and
+the Amplifier API are mocked. Each appointment reasons over only the visits that precede it
+(`chart(before=N)`), so its early-detection reasoning is causal, not clairvoyant.
 
 ## Demo data lives in GCS, not this repo
 
 No patient data is committed here. The precomputed demo dataset (chart, per-appointment
-audio + transcripts, precomputed `aria` results) lives only in the private bucket
-`gs://YOUR_BUCKET/demo-data`. The importer and cache-prewarm
-accept `gs://` URIs and fetch on demand with your `gcloud` credentials — so anyone running
-the public repo without access to that bucket cannot obtain the data (the fetch raises and the
-import/prewarm step aborts; the app run without an imported patient just starts with the synthetic
-one). To run the demo on the real patient with **zero live Amplifier calls**:
+transcripts, precomputed `aria` results) lives only in a private bucket
+`gs://YOUR_BUCKET/demo-data`. The importer accepts `gs://` URIs and fetches on demand with your
+`gcloud` credentials — so anyone running the public repo without access to that bucket cannot
+obtain the data (the fetch raises and the import aborts; the app run without an imported patient
+just starts with the synthetic one). To set up the real patient:
 
 ```bash
-# 1) import the patient chart/history + a planned live visit (streams from GCS)
+# import chart/history + per-visit signals & transcripts + a planned live visit
 .venv/bin/python scripts/import_demo_patient.py \
   gs://YOUR_BUCKET/demo-data \
   --patient-dir gs://YOUR_BUCKET/demo-data/patient_<PATIENT_ID> \
   --add-live-visit
-
-# 2) prewarm the biomarker cache from the precomputed aria results (no API calls)
-.venv/bin/python scripts/prewarm_cache.py \
-  --audio  gs://YOUR_BUCKET/demo-data/patient_<PATIENT_ID>/appt_16_.../audio/postdiarized_patient.wav \
-  --results 'gs://YOUR_BUCKET/demo-data/aria_results/v16_c*.json'
-
-# 3) run with real Claude reasoning and zero live Amplifier calls
-ANTHROPIC_API_KEY=… AMPLIFIER_OFFLINE=1 SPEED=20 .venv/bin/uvicorn clinical_agent.main:app
 ```
+
+The replay path needs only the small per-chunk results + transcripts (not the multi-GB audio), so
+no cache-prewarm step is required. `scripts/build_notes.py --pid demo-patient` optionally
+backfills a SOAP note for each historical visit.
