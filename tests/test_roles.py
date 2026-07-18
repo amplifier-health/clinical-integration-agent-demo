@@ -53,3 +53,29 @@ async def test_longitudinal(tmp_path):
     out = await roles.longitudinal_analysis(settings, bus, store, "demo-synthetic")
     assert out["deltas"][0]["visits_early"] == 6
     assert any(e["type"] == "longitudinal_delta" for e in _drain(q))
+
+
+async def test_shared_visit_memory(tmp_path):
+    """The reasoner (per chunk) and post-visit share ONE conversation — the final
+    analysis sees every prior turn (true memory continuity, not re-injected context)."""
+    settings, bus, store = setup(tmp_path)
+    base.MOCK_RESPONSES["reasoner"] = "observation for this chunk"
+    base.MOCK_RESPONSES["postvisit"] = json.dumps(
+        {"summary": "s", "vocal_findings": [], "transcript_findings": [], "discordance": "none",
+         "screener_recommendations": [], "chart_update_draft": [], "next_visit_topics": []})
+    history: list = [{"role": "user", "content": "VISIT START"}]
+
+    await roles.reason_over_chunk(settings, bus, store, "demo-synthetic", 0,
+                                  "patient mentions periods are irregular", [], {}, history=history)
+    await roles.reason_over_chunk(settings, bus, store, "demo-synthetic", 1,
+                                  "second chunk transcript", [], {}, history=history)
+    n_after_chunks = len(history)
+
+    await roles.post_visit_summary(settings, bus, store, "demo-synthetic", 10,
+                                   ["c0", "c1"], [], [], {}, history=history)
+
+    # conversation grew across chunks AND into the post-visit turn (same memory)
+    assert n_after_chunks >= 5           # seed + 2 chunks * (user + assistant)
+    assert len(history) > n_after_chunks  # post-visit appended to the same conversation
+    # the first chunk's content is still present when the post-visit analysis runs
+    assert any("irregular" in json.dumps(m) for m in history)

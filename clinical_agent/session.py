@@ -1,4 +1,5 @@
 import asyncio
+import json
 from pathlib import Path
 
 from clinical_agent.agents import roles
@@ -21,6 +22,13 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
                    reason=current.reason)
 
     brief = await roles.pre_visit_brief(settings, bus, store, pid)
+
+    # One conversation for the whole visit — the reasoner (per chunk) and the post-visit agent
+    # share this memory, so the final analysis is done by an agent that saw the entire encounter.
+    visit_history: list = [{"role": "user", "content":
+        f"VISIT START for patient {pid}. Chart:\n{json.dumps(store.chart(pid))}\n"
+        f"Pre-visit brief:\n{json.dumps(brief)}\n"
+        "Live voice-biomarker ticks and transcript follow as the visit is recorded."}]
 
     results_q: asyncio.Queue = asyncio.Queue()
     tasks: list[asyncio.Task] = []
@@ -50,7 +58,7 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
         signals_by_chunk[chunk_no] = signals
         cumulative = [s for n in sorted(signals_by_chunk) for s in signals_by_chunk[n]]
         obs = await roles.reason_over_chunk(settings, bus, store, pid, chunk_no, text,
-                                            cumulative, brief)
+                                            cumulative, brief, history=visit_history)
         observations.append(obs)
     await asyncio.gather(*tasks)
 
@@ -64,7 +72,7 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
     all_signals = [s for n in ordered for s in signals_by_chunk[n]]
     summary = await roles.post_visit_summary(settings, bus, store, pid, current.number,
                                              [transcripts[n] for n in sorted(transcripts)],
-                                             all_signals, observations, brief)
+                                             all_signals, observations, brief, history=visit_history)
     current.status = "complete"
     store.save_visits(pid, visits)
     await bus.emit("visit_complete", patient=pid, visit=current.number)

@@ -28,15 +28,21 @@ class ClaudeAgent:
         return hashlib.sha256(f"{self.name}\x00{system}\x00{user}".encode()).hexdigest()
 
     async def run(self, system: str, user: str, *, tools=None, effort: str = "high",
-                  output_schema: dict | None = None) -> str:
+                  output_schema: dict | None = None, history: list | None = None) -> str:
+        """Run one turn. Pass a shared `history` list to continue one conversation across
+        calls (the visit's memory) — the user turn and the model's reply are appended to it,
+        so a later call on the same history sees everything that came before."""
         if self.s.mock_claude:
             text = MOCK_RESPONSES.get(self.name, '{"mock": true}')
+            if history is not None:  # keep the shared conversation coherent even in mock mode
+                history.append({"role": "user", "content": user})
+                history.append({"role": "assistant", "content": text})
             await self.bus.emit("agent_token", agent=self.name, text=text)
             return text
         key = self._cache_key(system, user)
         try:
             text = await self._run_live(system, user, tools=tools, effort=effort,
-                                        output_schema=output_schema)
+                                        output_schema=output_schema, history=history)
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             (self.cache_dir / f"{key}.txt").write_text(text)
             return text
@@ -49,10 +55,11 @@ class ClaudeAgent:
             raise
 
     async def _run_live(self, system: str, user: str, *, tools=None, effort: str = "high",
-                        output_schema: dict | None = None) -> str:
+                        output_schema: dict | None = None, history: list | None = None) -> str:
         client = anthropic.AsyncAnthropic()
         tool_defs = [d for d, _ in (tools or {}).values()]
-        messages: list[dict] = [{"role": "user", "content": user}]
+        messages: list[dict] = history if history is not None else []  # shared visit memory
+        messages.append({"role": "user", "content": user})
         output_config: dict = {"effort": effort}
         if output_schema:
             output_config["format"] = {"type": "json_schema", "schema": output_schema}
@@ -75,6 +82,7 @@ class ClaudeAgent:
                 final = await stream.get_final_message()
 
             if final.stop_reason != "tool_use":
+                messages.append({"role": "assistant", "content": final.content})  # persist reply into memory
                 return "".join(parts)
 
             messages.append({"role": "assistant", "content": final.content})

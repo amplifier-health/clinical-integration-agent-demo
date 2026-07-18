@@ -1,4 +1,7 @@
 import json
+import urllib.parse
+
+import httpx
 
 from clinical_agent.agents.base import ClaudeAgent
 from clinical_agent.config import Settings
@@ -97,7 +100,7 @@ async def pre_visit_brief(settings: Settings, bus: EventBus, store: PatientStore
 
 async def reason_over_chunk(settings: Settings, bus: EventBus, store: PatientStore, pid: str,
                             chunk_no: int, transcript: str, cumulative_signals: list,
-                            brief: dict) -> str:
+                            brief: dict, history: list | None = None) -> str:
     agent = ClaudeAgent("reasoner", settings, bus)
 
     async def _read_chart(_input: dict) -> str:
@@ -108,29 +111,92 @@ async def reason_over_chunk(settings: Settings, bus: EventBus, store: PatientSto
                                             "prior vocal results and summaries.",
                              "input_schema": {"type": "object", "properties": {},
                                               "additionalProperties": False}}, _read_chart)}
-    user = (f"Pre-visit brief: {json.dumps(brief)}\n"
-            f"Chunk {chunk_no} transcript: {transcript}\n"
-            f"Cumulative signals so far: {json.dumps(cumulative_signals)}")
-    text = await agent.run(REASONER_SYSTEM, user, tools=tools, effort="low")
+    # With a shared visit history, only the NEW information for this chunk is sent — the
+    # brief and prior chunks are already in the conversation memory.
+    if history:
+        user = (f"LIVE TICK — chunk {chunk_no}.\nNew transcript: {transcript}\n"
+                f"New cumulative signals: {json.dumps(cumulative_signals)}\n"
+                "Triage: note only what a clinician should know right now; otherwise say so briefly.")
+    else:
+        user = (f"Pre-visit brief: {json.dumps(brief)}\n"
+                f"Chunk {chunk_no} transcript: {transcript}\n"
+                f"Cumulative signals so far: {json.dumps(cumulative_signals)}")
+    text = await agent.run(REASONER_SYSTEM, user, tools=tools, effort="low", history=history)
     await bus.emit("observation", patient=pid, chunk=chunk_no, text=text)
     return text
 
 
+def _clinical_trials_tool(bus: EventBus, pid: str):
+    """A tool that searches ClinicalTrials.gov and emits a `trial_match` per result."""
+    async def _search(inp: dict) -> str:
+        condition = inp.get("condition", "")
+        n = int(inp.get("max_results", 3))
+        async def _q(recruiting_only: bool):
+            params = {"query.cond": condition, "pageSize": n,
+                      "fields": "NCT Number,Study Title,Conditions,Overall Status"}
+            if recruiting_only:
+                params["filter.overallStatus"] = "RECRUITING"
+            url = "https://clinicaltrials.gov/api/v2/studies?" + urllib.parse.urlencode(params)
+            async with httpx.AsyncClient(timeout=30) as h:
+                return (await h.get(url)).json()
+        try:
+            data = await _q(True)
+            if not data.get("studies"):
+                data = await _q(False)  # fall back to any status so we still surface matches
+        except Exception as exc:
+            return f"trial search failed: {exc}"
+        found = []
+        for st in data.get("studies", [])[:n]:
+            idm = st.get("protocolSection", {}).get("identificationModule", {})
+            nct, title = idm.get("nctId", "?"), (idm.get("briefTitle") or "(untitled)")
+            await bus.emit("trial_match", patient=pid, nct_id=nct, title=title,
+                           why_relevant=f"Matched on '{condition}' (the undiscussed gap).",
+                           eligibility_hint=condition)
+            found.append(f"{nct}: {title}")
+        return "found: " + " | ".join(found) if found else "no trials found"
+
+    return {"search_clinical_trials": ({
+        "name": "search_clinical_trials",
+        "description": "Search ClinicalTrials.gov for trials relevant to a condition the visit did "
+                       "NOT focus on. Emits a trial_match per result.",
+        "input_schema": {"type": "object", "additionalProperties": False,
+                         "properties": {"condition": {"type": "string"},
+                                        "max_results": {"type": "integer"}},
+                         "required": ["condition"]}}, _search)}
+
+
 async def post_visit_summary(settings: Settings, bus: EventBus, store: PatientStore, pid: str,
                              visit_no: int, transcript_parts: list, all_signals: list,
-                             observations: list, brief: dict) -> dict:
+                             observations: list, brief: dict, history: list | None = None) -> dict:
     agent = ClaudeAgent("postvisit", settings, bus)
-    user = (f"Pre-visit brief: {json.dumps(brief)}\n"
-            f"Full transcript: {' '.join(transcript_parts)}\n"
-            f"All chunk signals: {json.dumps(all_signals)}\n"
-            f"Live observations: {json.dumps(observations)}")
-    summary = json.loads(await agent.run(POSTVISIT_SYSTEM, user, output_schema=POSTVISIT_SCHEMA))
+    if history:  # the visit is already in memory — just ask for the final structured analysis
+        user = ("POST-VISIT. The recording has stopped. Using everything you observed this visit "
+                "(all in your memory above), produce the final structured summary.")
+    else:
+        user = (f"Pre-visit brief: {json.dumps(brief)}\n"
+                f"Full transcript: {' '.join(transcript_parts)}\n"
+                f"All chunk signals: {json.dumps(all_signals)}\n"
+                f"Live observations: {json.dumps(observations)}")
+    summary = json.loads(await agent.run(POSTVISIT_SYSTEM, user, output_schema=POSTVISIT_SCHEMA,
+                                         history=history))
     store.write_artifact(pid, visit_no, "summary", summary)
     await bus.emit("visit_summary", patient=pid, visit=visit_no, summary=summary["summary"],
                    vocal_findings=summary["vocal_findings"], discordance=summary["discordance"],
                    screener_recommendations=summary["screener_recommendations"])
     await bus.emit("chart_draft", patient=pid, visit=visit_no, items=summary["chart_update_draft"])
     await bus.emit("topics", patient=pid, visit=visit_no, items=summary["next_visit_topics"])
+
+    # Same agent, same conversation: search trials for what the voice flagged but the visit missed.
+    if not settings.mock_claude:
+        gap = "; ".join(summary.get("next_visit_topics", [])) or summary.get("discordance", "")
+        if gap:
+            trials = ClaudeAgent("trials", settings, bus)
+            await trials.run(
+                POSTVISIT_SYSTEM,
+                f"For the follow-up gap you identified (\"{gap}\"), call search_clinical_trials to "
+                "surface relevant trials the clinician might consider. Search the single most "
+                "important undiscussed condition.",
+                tools=_clinical_trials_tool(bus, pid), effort="low", history=history)
     return summary
 
 
