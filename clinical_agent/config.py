@@ -16,6 +16,9 @@ class Settings:
     anthropic_model: str = "claude-opus-4-8"
     mock_claude: bool = False
     amplifier_cache: str = "off"  # off | warm | record
+    # Never call the live Amplifier API — read cached results only; a cache miss returns a
+    # benign empty result. Use this to run the demo entirely off precomputed results.
+    amplifier_offline: bool = False
     whisper_model: str = "base"
     mock_whisper: bool = False
     speed: float = 1.0
@@ -35,6 +38,7 @@ class Settings:
             anthropic_model=os.environ.get("ANTHROPIC_MODEL", cls.anthropic_model),
             mock_claude=os.environ.get("MOCK_CLAUDE", "") == "1",
             amplifier_cache=os.environ.get("AMPLIFIER_CACHE", "off"),
+            amplifier_offline=os.environ.get("AMPLIFIER_OFFLINE", "") == "1",
             whisper_model=os.environ.get("WHISPER_MODEL", "base"),
             mock_whisper=os.environ.get("MOCK_WHISPER", "") == "1",
             speed=float(os.environ.get("SPEED", "1.0")),

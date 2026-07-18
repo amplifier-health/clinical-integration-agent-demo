@@ -67,3 +67,16 @@ async def test_rate_limiter_spaces_calls():
     await rl.acquire()
     await rl.acquire()
     assert waits and abs(sum(waits) - 60.0) < 0.01  # third call waited a full window
+
+
+@respx.mock
+async def test_offline_never_calls_api(tmp_path):
+    # AMPLIFIER_OFFLINE: cache miss -> empty result, cache hit -> cached, and NEVER any network call
+    s = Settings(amplifier_base_url=BASE, amplifier_account_id="a", amplifier_api_key="k",
+                 amplifier_offline=True, amplifier_use_cases=["aria"])
+    client = AmplifierClient(s, EventBus(), cache_dir=tmp_path / "cache")
+    miss = await client.analyze(chunk(1))            # respx would 404 any request
+    assert miss["signals"] == [] and len(respx.calls) == 0
+    client._cache_write(chunk(2), RESULT)
+    hit = await client.analyze(chunk(2))
+    assert hit == RESULT and len(respx.calls) == 0

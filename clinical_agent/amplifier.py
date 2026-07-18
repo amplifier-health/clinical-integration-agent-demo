@@ -103,12 +103,17 @@ class AmplifierClient:
             await asyncio.sleep(self.poll_interval)
 
     async def analyze(self, chunk: AudioChunk) -> dict:
-        if self.s.amplifier_cache == "warm":
+        if self.s.amplifier_cache == "warm" or self.s.amplifier_offline:
             cached = self._cache_read(chunk)
             if cached is not None:
                 await self.bus.emit("api_job_result", chunk=chunk.index, cached=True,
                                     signals=cached.get("signals"), summary=cached.get("summary"))
                 return cached
+        if self.s.amplifier_offline:  # never touch the live API — return an empty result on a miss
+            empty = {"signals": [], "summary": {"overall_level": "inconclusive"}}
+            await self.bus.emit("api_job_result", chunk=chunk.index, cached=False, offline_miss=True,
+                                signals=[], summary=empty["summary"])
+            return empty
         async with httpx.AsyncClient(timeout=60) as http:
             up = (await self._request(http, "POST", f"{self.s.amplifier_base_url}/v2/audio/uploads",
                                       self.general_limiter, json={"content_type": "audio/wav"},
