@@ -136,7 +136,7 @@
       "schema": {
         "$defs": {
           "Signal": {
-            "additionalProperties": false,
+            "additionalProperties": true,
             "properties": {
               "flagged": {
                 "anyOf": [

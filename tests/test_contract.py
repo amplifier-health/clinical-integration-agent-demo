@@ -61,6 +61,18 @@ async def test_emit_rejects_offcontract_payload():
         await bus.emit("visit_note", patient="p1", visit=1, chief_complaint="x")  # missing required
 
 
+def test_signal_tolerates_extra_api_fields():
+    # Live Amplifier signal objects may carry fields we don't model — they must pass
+    # and be preserved (regression: extra="forbid" would break the live path).
+    out = contract.validate("api_job_result", {
+        "chunk": 1, "cached": False,
+        "signals": [{"name": "anxiety", "score": 0.5, "level": "moderate",
+                     "flagged": True, "recommended_action": "monitor", "extra_metric": 0.9}],
+    })
+    sig = out["signals"][0]
+    assert sig["recommended_action"] == "monitor" and sig["extra_metric"] == 0.9
+
+
 def test_committed_schema_is_current():
     # The published contract in docs/ must match the models. Regenerate with
     # `python scripts/dump_contract.py` when this fails.

@@ -203,4 +203,5 @@ async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
 
 
 async def run_longitudinal(settings: Settings, bus: EventBus, store: PatientStore, pid: str) -> dict:
+    start_session(patient_id=pid)  # scope the longitudinal events to a session too
     return await roles.longitudinal_analysis(settings, bus, store, pid)

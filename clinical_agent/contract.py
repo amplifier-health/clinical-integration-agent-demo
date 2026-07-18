@@ -33,7 +33,10 @@ class _Payload(BaseModel):
 # ---- shared sub-objects (referenced across events) ----------------------------
 
 class Signal(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    # extra="allow": signals in `api_job_result` come straight from the Amplifier API,
+    # whose objects may carry fields we don't model. Tolerate and preserve them on the
+    # wire (don't reject live results) while still type-checking the fields we rely on.
+    model_config = ConfigDict(extra="allow")
     name: str
     score: Optional[float] = None
     level: TIER
