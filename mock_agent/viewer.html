@@ -304,7 +304,10 @@ async function loadChart(){
     $('nName').textContent=chart.name; $('nMrn').textContent='MRN '+(chart.mrn||'—'); $('nAv').textContent=init;
     $('aiPt').textContent=chart.name.split(' ')[0]+' · current encounter';
     seedNote();
-  }catch(e){ chart={name:PID,problems:[],meds:[]}; seedNote(); }
+  }catch(e){  // make a failed chart load visible instead of showing a blank patient
+    chart={name:PID+' · chart unavailable',problems:[],meds:[]};
+    ['mName','nName'].forEach(i=>$(i).textContent=chart.name); seedNote();
+  }
 }
 function seedNote(){
   $('noteBody').innerHTML=`
@@ -408,9 +411,12 @@ function play(){
   $('aiBody').innerHTML='';$('rlog').innerHTML='';seedNote();
   secs=0;$('mTimer').textContent='0:00';clearInterval(timer);timer=setInterval(tickTimer,1000);
   setRecUI('recording');
+  let ended=false;  // so a normal stream close doesn't look like a connection error
   const on=(t,f)=>es.addEventListener(t,e=>{try{f(JSON.parse(e.data))}catch(_){}});
   const qs = BASE.includes(':8000') ? '' : '?speed='+$('speed').value;  // backend uses env SPEED; mock uses ?speed
   es=new EventSource(BASE+'/events'+qs);
+  es.onerror=()=>{ if(!ended && es.readyState!==EventSource.OPEN){
+    addStep({phase:'gap',message:'⚠ event stream error — is the backend reachable at '+(BASE||location.origin)+'?'}); } };
   on('visit_started',()=>{$('recLabel').textContent='Recording · analyzing';});
   on('pre_visit_brief',d=>addBriefing([
     ...(d.topics_to_discuss||[]).map(t=>({text:t,source:'chart'})),
@@ -430,11 +436,13 @@ function play(){
   on('longitudinal_delta',addLong);
   on('longitudinal_narrative',d=>addStep({phase:'post',message:d.text||''}));
   on('error',d=>addStep({phase:'gap',message:'error: '+(d.message||'')}));
-  on('visit_complete',()=>{ clearInterval(timer); setRecUI('done'); if(es)es.close(); });
-  on('end',()=>{ clearInterval(timer); setRecUI('done'); if(es)es.close(); });  // mock server terminator
+  on('visit_complete',()=>{ ended=true; clearInterval(timer); setRecUI('done'); if(es)es.close(); });
+  on('end',()=>{ ended=true; clearInterval(timer); setRecUI('done'); if(es)es.close(); });  // mock server terminator
   // trigger the backend visit (stream-first). No-op for the offline mock server, which replays on connect.
   fetch(BASE+'/patients/'+PID+'/visits/start',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({audio_path:AUDIO_PATH})}).catch(()=>{});
+        body:JSON.stringify({audio_path:AUDIO_PATH})})
+    .then(r=>{ if(!r.ok && !BASE) return; if(!r.ok) addStep({phase:'gap',message:'⚠ could not start the visit ('+r.status+') at '+(BASE||location.origin)}); })
+    .catch(err=>{ addStep({phase:'gap',message:'⚠ could not reach the backend at '+(BASE||location.origin)+' — '+err}); });
 }
 // build waveform bars + initial record button
 $('wave').innerHTML=Array.from({length:34},()=>'<i></i>').join('');

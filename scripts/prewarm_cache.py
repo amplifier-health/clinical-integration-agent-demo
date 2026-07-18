@@ -58,7 +58,13 @@ async def main() -> None:
         files = glob.glob(str(rdir / "*.json"))
     else:
         files = glob.glob(args.results)
-    files = sorted(files, key=lambda f: int((re.search(r"c(\d+)", Path(f).stem) or re.match("0", "0")).group(1)))
+    def _chunk_idx(f: str) -> int:
+        m = re.search(r"c(\d+)", Path(f).stem)
+        if m is None:
+            raise SystemExit(f"unexpected result filename (no cNNN index): {f}")
+        return int(m.group(1))
+
+    files = sorted(files, key=_chunk_idx)
     precomp = [json.loads(Path(f).read_text()) for f in files]
     precomp = [p for p in precomp if p.get("status") == "done"]
     if not precomp:
@@ -67,12 +73,18 @@ async def main() -> None:
     settings = Settings(data_dir=args.data_dir, amplifier_use_cases=[args.use_case], amplifier_cache="warm")
     client = AmplifierClient(settings, EventBus())
 
-    written = 0
+    written = total = 0
     async for chunk in chunk_file(audio, speed=1e9):
+        total += 1
         if chunk.index >= len(precomp):
-            break
+            continue  # more backend chunks than precomputed results — leave uncached (warned below)
         client._cache_write(chunk, _to_api_result(precomp[chunk.index]))
         written += 1
+    if total != len(precomp):
+        print(f"WARNING: the backend chunker produced {total} chunks but there are {len(precomp)} "
+              f"precomputed results — {max(0, total - written)} chunk(s) have NO cached result, so "
+              f"offline mode will show empty signals for them. Re-generate the results with the same "
+              f"chunking, or point --audio at the exact audio the results were computed from.")
     print(f"prewarmed {written} cache entries ({args.use_case}) into {settings.data_dir / 'amplifier_cache'} "
           f"— run with AMPLIFIER_OFFLINE=1 for zero live Amplifier calls")
 

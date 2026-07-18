@@ -132,13 +132,16 @@ def _clinical_trials_tool(bus: EventBus, pid: str):
         condition = inp.get("condition", "")
         n = int(inp.get("max_results", 3))
         async def _q(recruiting_only: bool):
-            params = {"query.cond": condition, "pageSize": n,
-                      "fields": "NCT Number,Study Title,Conditions,Overall Status"}
+            # NB: no `fields` filter — the v2 API rejects display-name fields (400), and the full
+            # study object carries protocolSection.identificationModule, which we read below.
+            params = {"query.cond": condition, "pageSize": n}
             if recruiting_only:
                 params["filter.overallStatus"] = "RECRUITING"
             url = "https://clinicaltrials.gov/api/v2/studies?" + urllib.parse.urlencode(params)
             async with httpx.AsyncClient(timeout=30) as h:
-                return (await h.get(url)).json()
+                r = await h.get(url)
+                r.raise_for_status()
+                return r.json()
         try:
             data = await _q(True)
             if not data.get("studies"):
@@ -186,7 +189,7 @@ async def post_visit_summary(settings: Settings, bus: EventBus, store: PatientSt
     await bus.emit("chart_draft", patient=pid, visit=visit_no, items=summary["chart_update_draft"])
     await bus.emit("topics", patient=pid, visit=visit_no, items=summary["next_visit_topics"])
 
-    # Same agent, same conversation: search trials for what the voice flagged but the visit missed.
+    # Reuses the visit conversation (shared history) to search trials for the undiscussed gap.
     if not settings.mock_claude:
         gap = "; ".join(summary.get("next_visit_topics", [])) or summary.get("discordance", "")
         if gap:

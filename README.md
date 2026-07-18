@@ -136,9 +136,9 @@ No patient data is committed here. The precomputed demo dataset (chart, per-appo
 audio + transcripts, precomputed `aria` results) lives only in the private bucket
 `gs://amplifier-ai-research/abridge-hackathon-demo-071826`. The importer and cache-prewarm
 accept `gs://` URIs and fetch on demand with your `gcloud` credentials — so anyone running
-the public repo without access to that bucket cannot obtain the data (the fetch fails and the
-app falls back to the synthetic patient). To run the demo on the real patient with **zero live
-Amplifier calls**:
+the public repo without access to that bucket cannot obtain the data (the fetch raises and the
+import/prewarm step aborts; the app run without an imported patient just starts with the synthetic
+one). To run the demo on the real patient with **zero live Amplifier calls**:
 
 ```bash
 # 1) import the patient chart/history + a planned live visit (streams from GCS)

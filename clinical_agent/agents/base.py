@@ -40,6 +40,7 @@ class ClaudeAgent:
             await self.bus.emit("agent_token", agent=self.name, text=text)
             return text
         key = self._cache_key(system, user)
+        base_len = len(history) if history is not None else None  # for rollback on failure
         try:
             text = await self._run_live(system, user, tools=tools, effort=effort,
                                         output_schema=output_schema, history=history)
@@ -47,9 +48,16 @@ class ClaudeAgent:
             (self.cache_dir / f"{key}.txt").write_text(text)
             return text
         except Exception:
+            # A partial live call may have appended a user turn (and dangling tool_use blocks)
+            # to the SHARED history. Roll back so the conversation stays valid for later turns.
+            if history is not None:
+                del history[base_len:]
             cached = self.cache_dir / f"{key}.txt"
             if cached.exists():
                 text = cached.read_text()
+                if history is not None:  # record the fallback exchange so memory stays coherent
+                    history.append({"role": "user", "content": user})
+                    history.append({"role": "assistant", "content": text})
                 await self.bus.emit("agent_token", agent=self.name, text=text, cached=True)
                 return text
             raise

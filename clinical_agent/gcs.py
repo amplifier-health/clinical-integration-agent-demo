@@ -2,8 +2,9 @@
 
 No patient data is stored in this repo. The importer and cache-prewarm read directly
 from GCS at runtime, using the caller's `gcloud` credentials. Anyone running the public
-repo without access to the bucket simply can't fetch the data — the fetch fails and the
-demo falls back to the synthetic patient.
+repo without access to the bucket can't fetch the data — `localize()` raises SystemExit,
+which aborts the one-shot import/prewarm step. The app itself never sees the data, so if
+the demo patient was never imported, `main.py` just starts with the synthetic patient.
 """
 import subprocess
 import tempfile
@@ -19,6 +20,7 @@ def localize(path: str | Path, dest: Path | None = None) -> Path:
         return Path(path)
     dest = dest or Path(tempfile.mkdtemp(prefix="demo-gcs-"))
     dest.mkdir(parents=True, exist_ok=True)
+    last_err = "no `gcloud` or `gsutil` found on PATH"
     for cmd in (["gcloud", "storage", "cp", "-r", p, str(dest)],
                 ["gsutil", "-m", "cp", "-r", p, str(dest)]):
         try:
@@ -27,10 +29,11 @@ def localize(path: str | Path, dest: Path | None = None) -> Path:
             continue
         if r.returncode == 0:
             break
+        last_err = (r.stderr or "").strip()
     else:
         raise SystemExit(
-            f"Could not fetch {p} from GCS (is `gcloud` installed and do you have access "
-            f"to the bucket?). This demo's data lives only in that private bucket.")
+            f"Could not fetch {p} from GCS — the demo's data lives only in that private bucket, "
+            f"so you need `gcloud` access to it.\n{last_err}")
     # `cp -r gs://.../name dest` lands at dest/name; a wildcard lands the matches in dest/
     name = p.rstrip("/").split("/")[-1]
     landed = dest / name
