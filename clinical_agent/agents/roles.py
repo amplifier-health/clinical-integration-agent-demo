@@ -35,6 +35,14 @@ POSTVISIT_SYSTEM = (
     "update draft for clinician approval, and topics to raise at the next visit. " + _NEVER_DIAGNOSE
 )
 
+VISITNOTE_SYSTEM = (
+    "You are a clinical documentation agent. From a visit transcript and the ICD-10 codes the "
+    "clinician assigned to THIS encounter, write a concise, factual visit note in SOAP form. "
+    "Ground every statement in the transcript. Treat the ICD-10 codes as the clinician's coded "
+    "assessment for this visit and reflect each one in the Assessment. Do not invent findings. "
+    + _NEVER_DIAGNOSE
+)
+
 LONGITUDINAL_SYSTEM = (
     "You are a longitudinal analyst. Compare, per condition, when vocal biomarkers first flagged a "
     "signal versus when the condition (or a related ICD-10 code) first appeared in the chart. "
@@ -70,6 +78,22 @@ POSTVISIT_SCHEMA = {
                  "screener_recommendations", "chart_update_draft", "next_visit_topics"],
 }
 
+VISITNOTE_SCHEMA = {
+    "type": "object", "additionalProperties": False,
+    "properties": {
+        "chief_complaint": {"type": "string"},
+        "subjective": {"type": "string"},
+        "objective": {"type": "string"},
+        "assessment": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False,
+            "properties": {"code": {"type": "string"}, "description": {"type": "string"},
+                           "note": {"type": "string"}},
+            "required": ["code", "description", "note"]}},
+        "plan": _STR_ARR,
+    },
+    "required": ["chief_complaint", "subjective", "objective", "assessment", "plan"],
+}
+
 LONGITUDINAL_SCHEMA = {
     "type": "object", "additionalProperties": False,
     "properties": {
@@ -96,6 +120,49 @@ async def pre_visit_brief(settings: Settings, bus: EventBus, store: PatientStore
         store.write_artifact(pid, planned.number, "pre_visit_brief", brief)
     await bus.emit("pre_visit_brief", patient=pid, **brief)
     return brief
+
+
+def _transcript_text(parts) -> str:
+    """Flatten a stored transcript to plain text. Handles both shapes we persist:
+    historical `[{speaker, text}]` (from GCS diarization) and live `[{chunk, text}]`."""
+    if not parts:
+        return ""
+    if isinstance(parts, str):
+        return parts
+    lines = []
+    for p in parts:
+        if isinstance(p, dict):
+            who = p.get("speaker") or (f"chunk {p['chunk']}" if "chunk" in p else "")
+            lines.append(f"{who + ': ' if who else ''}{p.get('text', '')}")
+        else:
+            lines.append(str(p))
+    return "\n".join(lines)
+
+
+def _code_lines(icd10) -> str:
+    out = []
+    for c in icd10 or []:
+        code = c.get("code") if isinstance(c, dict) else c.code
+        desc = c.get("description") if isinstance(c, dict) else c.description
+        out.append(f"- {code}: {desc}")
+    return "\n".join(out) or "(no ICD-10 codes assigned to this visit)"
+
+
+async def build_visit_note(settings: Settings, bus: EventBus, store: PatientStore, pid: str,
+                           visit_no: int, transcript, icd10, signals: list | None = None,
+                           history: list | None = None) -> dict:
+    """Draft a basic SOAP visit note from the transcript + the ICD-10 codes coded for this
+    visit (and any vocal signals). Stores a `note` artifact and emits `visit_note`."""
+    agent = ClaudeAgent("notewriter", settings, bus)
+    user = (f"Visit transcript:\n{_transcript_text(transcript) or '(no transcript available)'}\n\n"
+            f"ICD-10 codes the clinician assigned to THIS visit:\n{_code_lines(icd10)}")
+    if signals:
+        user += f"\n\nVocal-biomarker signals observed this visit:\n{json.dumps(signals)}"
+    note = json.loads(await agent.run(VISITNOTE_SYSTEM, user, output_schema=VISITNOTE_SCHEMA,
+                                      history=history))
+    store.write_artifact(pid, visit_no, "note", note)
+    await bus.emit("visit_note", patient=pid, visit=visit_no, **note)
+    return note
 
 
 async def reason_over_chunk(settings: Settings, bus: EventBus, store: PatientStore, pid: str,

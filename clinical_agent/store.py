@@ -74,5 +74,6 @@ class PatientStore:
                 **v.model_dump(),
                 "signals": self.read_artifact(pid, v.number, "signals"),
                 "summary": self.read_artifact(pid, v.number, "summary"),
+                "note": self.read_artifact(pid, v.number, "note"),
             })
         return {"patient": self.get_patient(pid).model_dump(), "visits": visits}

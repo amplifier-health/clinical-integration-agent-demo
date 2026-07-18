@@ -73,6 +73,9 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
     summary = await roles.post_visit_summary(settings, bus, store, pid, current.number,
                                              [transcripts[n] for n in sorted(transcripts)],
                                              all_signals, observations, brief, history=visit_history)
+    await roles.build_visit_note(settings, bus, store, pid, current.number,
+                                 [transcripts[n] for n in sorted(transcripts)],
+                                 current.icd10, all_signals, history=visit_history)
     current.status = "complete"
     store.save_visits(pid, visits)
     await bus.emit("visit_complete", patient=pid, visit=current.number)

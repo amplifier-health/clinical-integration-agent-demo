@@ -79,3 +79,22 @@ async def test_shared_visit_memory(tmp_path):
     assert len(history) > n_after_chunks  # post-visit appended to the same conversation
     # the first chunk's content is still present when the post-visit analysis runs
     assert any("irregular" in json.dumps(m) for m in history)
+
+
+async def test_build_visit_note_writes_and_emits(tmp_path):
+    settings, bus, store = setup(tmp_path)
+    base.MOCK_RESPONSES["notewriter"] = json.dumps({
+        "chief_complaint": "anxiety",
+        "subjective": "reports feeling anxious and tired",
+        "objective": "alert, cooperative",
+        "assessment": [{"code": "F41.9", "description": "Anxiety disorder", "note": "coded this visit"}],
+        "plan": ["start PHQ-9"],
+    })
+    q = bus.subscribe()
+    transcript = [{"speaker": "patient", "text": "I've been very anxious and tired."}]
+    note = await roles.build_visit_note(settings, bus, store, "demo-synthetic", 1, transcript,
+                                        [{"code": "F41.9", "description": "Anxiety disorder"}],
+                                        [{"name": "anxiety", "level": "moderate"}])
+    assert note["assessment"][0]["code"] == "F41.9"
+    assert store.read_artifact("demo-synthetic", 1, "note")["plan"] == ["start PHQ-9"]
+    assert any(e["type"] == "visit_note" for e in _drain(q))
