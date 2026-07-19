@@ -23,9 +23,15 @@ _DEPTH_PROMPT = {
 class ClinicianConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     explainability: Literal["minimal", "standard", "detailed"] = "standard"
+    # Setting: enabled clinical outputs. None = all enabled (full contract). A list names
+    # the clinical event types the clinician wants; others are suppressed at the emit gate.
+    enabled_outputs: list[str] | None = None
 
     def depth_prompt(self) -> str:
         return _DEPTH_PROMPT[self.explainability]
+
+    def output_enabled(self, clinical_type: str) -> bool:
+        return self.enabled_outputs is None or clinical_type in self.enabled_outputs
 
     @classmethod
     def from_override(cls, override: dict | None) -> "ClinicianConfig":
