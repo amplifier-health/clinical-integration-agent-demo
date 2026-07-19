@@ -645,8 +645,9 @@ function play(){
   on('api_job_created',d=>addStep({phase:'score',message:`chunk ${d.chunk} → POST /v2/models/${d.model||'aria'}/analyze → job ${d.job_id||''}`}));
   on('api_job_result',d=>{ tokAgent=null;
     (d.signals||[]).forEach(addSignalChip);  // flagged voice signals → the mobile screen (brief, no numbers)
-    const log=$('rlog');const el=document.createElement('div');el.className='rbio';  // full detail (with scores) stays behind the scenes
-    el.innerHTML=(d.signals||[]).map(s=>`${s.name} <b>${(+(s.score||0)).toFixed(2)}</b>`).join(' · ')||'(no conclusive signals)';
+    const log=$('rlog');const el=document.createElement('div');el.className='rbio';  // qualitative tiers only — never raw scores
+    el.innerHTML=(d.signals||[]).filter(s=>s.level&&s.level!=='none'&&s.level!=='inconclusive')
+      .map(s=>`${s.name} <b>${s.level}</b>`).join(' · ')||'(no conclusive signals)';
     log.appendChild(el);log.scrollTop=1e9;});
   on('agent_token',addToken);
   on('agent_tool_call',d=>{tokAgent=null; addStep({phase:'reason',message:`decision → ${d.tool}(${JSON.stringify(d.input||{}).slice(0,120)})`});});

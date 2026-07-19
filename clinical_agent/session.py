@@ -39,11 +39,15 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
 
     # One conversation for the whole visit — the reasoner (per chunk) and the post-visit agent
     # share this memory, so the final analysis is done by an agent that saw the entire encounter.
+    _wellness = _wellness_context(store, pid, current.number)
     visit_history: list = [{"role": "user", "content":
         f"VISIT START for patient {pid}. Chart (prior appointments only):\n"
         f"{json.dumps(store.chart(pid, before=current.number))}\n"
         f"Pre-visit brief:\n{json.dumps(brief)}\n"
-        "Live voice-biomarker ticks and transcript follow as the visit is recorded."}]
+        + (f"Full voice wellness & speech-prosody object for this visit (reason over ALL of it to "
+           f"contextualize the condition signals; never surface raw numbers to the clinician):\n"
+           f"{json.dumps(_wellness)}\n" if _wellness else "")
+        + "Live voice-biomarker ticks and transcript follow as the visit is recorded."}]
 
     results_q: asyncio.Queue = asyncio.Queue()
     tasks: list[asyncio.Task] = []
@@ -101,6 +105,13 @@ _TIER_FLAGGED = {"consider", "moderate", "elevated", "high"}
 _SEG_RE = re.compile(r"\s*([\d.]+)-([\d.]+)\s+\[([^\]]+)\]:\s*(.*)")
 
 
+def _wellness_context(store: PatientStore, pid: str, visit_no: int) -> dict | None:
+    """The WHOLE wellness + speech/prosody object for a visit — 18 wellness dimensions (each with
+    anchor words) and the speech prosody metrics. Handed to the agent verbatim so it can reason over
+    the full picture and CONTEXTUALIZE the condition signals itself, not receive a pre-curated slice."""
+    return store.read_artifact(pid, visit_no, "wellness") or None
+
+
 def _timed_segments(transcript) -> list[tuple[float, str, str]]:
     """Parse diarized transcript turns (`"12.3-15.0 [SPEAKER_01]: words"` lines) into a single
     time-ordered list of (start_s, speaker, text) so the demo can pretend-stream them like live ASR."""
@@ -136,11 +147,15 @@ async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
     await bus.emit("visit_started", patient=pid, visit=current.number, date=current.date,
                    reason=current.reason)
     brief = await roles.pre_visit_brief(settings, bus, store, pid, before=current.number)
+    _wellness = _wellness_context(store, pid, current.number)
     visit_history: list = [{"role": "user", "content":
         f"VISIT START for patient {pid}. Chart (prior appointments only):\n"
         f"{json.dumps(store.chart(pid, before=current.number))}\n"
         f"Pre-visit brief:\n{json.dumps(brief)}\n"
-        "Precomputed voice-biomarker ticks follow as the visit is replayed."}]
+        + (f"Full voice wellness & speech-prosody object for this visit (reason over ALL of it to "
+           f"contextualize the condition signals; never surface raw numbers to the clinician):\n"
+           f"{json.dumps(_wellness)}\n" if _wellness else "")
+        + "Precomputed voice-biomarker ticks follow as the visit is replayed."}]
 
     # Pretend-stream the transcript we already have, time-aligned — standing in for the live ASR
     # we'd run on the scribe's audio stream in the real scenario.

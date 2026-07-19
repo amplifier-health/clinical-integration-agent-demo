@@ -11,11 +11,22 @@ _NEVER_DIAGNOSE = (
     "All chart changes are drafts a clinician must approve."
 )
 
+_QUALITATIVE = (
+    "You are given the FULL voice-biomarker object — the condition signals, the wellness dimensions "
+    "(each with anchor words, e.g. invigorated↔exhausted), and the speech/prosody metrics (pitch, "
+    "loudness, speech rate). Reason over ALL of it: use the wellness and prosody context to "
+    "corroborate or temper the condition signals and describe the coherent clinical picture — do not "
+    "just restate individual signals. NEVER surface raw numeric scores, probabilities, or metric "
+    "values to the clinician; translate everything into qualitative clinical language (e.g. 'markedly "
+    "elevated', 'reduced pitch variability consistent with flat affect'). A number like 0.08 is "
+    "meaningless to a physician. "
+)
+
 PREVISIT_SYSTEM = (
     "You are a pre-visit preparation agent for a clinician. Given a patient's chart — visits, "
     "ICD-10 codes, prior vocal biomarker results and visit summaries — produce a short brief: "
     "vocal signal trends across visits, discordance between what the voice showed and what the "
-    "chart coded, and concrete topics to discuss today. " + _NEVER_DIAGNOSE
+    "chart coded, and concrete topics to discuss today. " + _QUALITATIVE + _NEVER_DIAGNOSE
 )
 
 REASONER_SYSTEM = (
@@ -27,7 +38,7 @@ REASONER_SYSTEM = (
     "speak, use at most one sentence; never restate the transcript or enumerate every signal. "
     "Favor precision over recall — a missed minor cue is fine; a noisy false alarm is not. "
     "Never suggest 'establishing a baseline' or generic monitoring — say something specific or nothing. "
-    "Use the read_chart tool only if chart history would change your assessment. " + _NEVER_DIAGNOSE
+    "Use the read_chart tool only if chart history would change your assessment. " + _QUALITATIVE + _NEVER_DIAGNOSE
 )
 
 POSTVISIT_SYSTEM = (
@@ -37,7 +48,7 @@ POSTVISIT_SYSTEM = (
     "Be high-precision and conservative: include only findings you are confident about, and only "
     "vocal findings that are actually flagged (consider/moderate/elevated) — omit weak, borderline, "
     "or speculative signals entirely. Prefer a few strong items over a long list; a clinician's "
-    "attention is scarce. " + _NEVER_DIAGNOSE
+    "attention is scarce. " + _QUALITATIVE + _NEVER_DIAGNOSE
 )
 
 VISITNOTE_SYSTEM = (
@@ -45,7 +56,7 @@ VISITNOTE_SYSTEM = (
     "clinician assigned to THIS encounter, write a concise, factual visit note in SOAP form. "
     "Ground every statement in the transcript. Treat the ICD-10 codes as the clinician's coded "
     "assessment for this visit and reflect each one in the Assessment. Do not invent findings. "
-    + _NEVER_DIAGNOSE
+    + _QUALITATIVE + _NEVER_DIAGNOSE
 )
 
 LONGITUDINAL_SYSTEM = (
