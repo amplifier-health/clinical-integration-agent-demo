@@ -762,7 +762,7 @@ function renderContract(c){
   // Config: each clinical output as an enable toggle (all on = full contract).
   const g=$('cfgGrid'); g.innerHTML='';
   // trials + screeners default OFF (opt-in); all else on
-  [...clin].sort().forEach(t=>{ const el=document.createElement('div'); el.className='uc'+((t==='trial_match'||t==='screener_suggested')?'':' on'); el.dataset.type=t;
+  [...clin].sort().forEach(t=>{ const el=document.createElement('div'); el.className='uc on'; el.dataset.type=t;  // all outputs enabled by default
     const sw=document.createElement('span'); sw.className='sw';
     const nm=document.createElement('span'); nm.className='ucn';
     nm.innerHTML=''; nm.append(document.createTextNode((ev[t]||{}).label||PRETTY(t)));
