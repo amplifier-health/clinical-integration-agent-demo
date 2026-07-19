@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from clinical_agent import contract
+from clinical_agent.clinician_config import current_config
 
 log = logging.getLogger(__name__)
 
@@ -51,6 +52,10 @@ class EventBus:
             self._subs.remove(q)
 
     async def emit(self, type: str, **data) -> None:
+        # Clinician config: suppress clinical outputs the clinician disabled. Only clinical
+        # types are gateable — lifecycle/telemetry/reasoning/error always flow.
+        if type in contract.CLINICAL_TYPES and not current_config().output_enabled(type):
+            return
         # Validate against the registered model, then stamp the envelope. Wire stays
         # flat for UI back-compat. Fail-soft: a validation error must never abort a
         # live visit (many call sites emit unwrapped), so on drift we log, mark the

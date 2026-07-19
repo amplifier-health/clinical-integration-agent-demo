@@ -466,7 +466,9 @@ function seedNote(){
    <div id="flowMount"></div>
    <h2 id="asmtHd" style="display:none">Assessment &amp; plan — voice-informed</h2>
    <div id="asmtMount"></div>
-   <div class="plan" id="planMount"></div>`;
+   <div class="plan" id="planMount"></div>
+   <h2 id="trialsHd" style="display:none">Surfaced Clinical Trials</h2>
+   <div id="trialsMount"></div>`;
 }
 function _selectedNum(){ const v=$('visitPick')&&$('visitPick').value;
   if(v) return +v;                                   // a specific historical visit
@@ -623,6 +625,15 @@ function addSummary(d){
     addAddendum({section:'Voice–words discordance',text:d.discordance});
 }
 function addChartDraft(d){ (d.items||[]).slice(0,3).forEach(it=>addAddendum({section:'Chart update · draft',text:`${it.description}${it.rationale?' — '+it.rationale:''}`})); }
+function addTrialToNote(d){  // renders inside the Note (not a side panel), under "Surfaced Clinical Trials"
+  $('trialsHd').style.display='block';
+  const el=document.createElement('div'); el.className='addendum';
+  el.innerHTML=`<div class="tag">${sparkSvg} Clinical trial · ambient</div>`
+    +`<div><b>${d.nct_id||''}</b> — ${d.title||''}</div>`
+    +(d.why_relevant?`<div class="fu-why" style="margin-top:3px">${d.why_relevant}</div>`:'')
+    +(d.eligibility_hint?`<div class="fu-why" style="margin-top:2px;color:var(--muted)">▸ ${d.eligibility_hint}</div>`:'');
+  $('trialsMount').appendChild(el);
+}
 function addNextTopics(d){ (d.items||[]).slice(0,3).forEach(t=>addFollow({text:t,why:'To raise at the next visit',discussed:false})); }
 
 function play(){
@@ -656,15 +667,19 @@ function play(){
   on('visit_summary',addSummary);
   on('chart_draft',addChartDraft);
   on('topics',addNextTopics);
+  on('trial_match',addTrialToNote);  // renders under "Surfaced Clinical Trials" in the Note (opt-in)
   on('longitudinal_narrative',d=>addStep({phase:'post',message:d.text||''}));
   on('error',d=>addStep({phase:'gap',message:'error: '+(d.message||'')}));
   on('visit_complete',()=>{ ended=true; clearInterval(timer); setRecUI('done'); if(es)es.close(); });
   on('end',()=>{ ended=true; clearInterval(timer); setRecUI('done'); if(es)es.close(); });  // mock server terminator
   // trigger the backend visit (stream-first). No-op for the offline mock server, which replays on connect.
   const depth=($('depthSeg').querySelector('button.on')||{}).dataset?.d||'standard';
+  const ucs=[...document.querySelectorAll('#cfgGrid .uc')];
+  // null = grid not loaded yet → backend treats as all-enabled (never accidentally suppress all)
+  const enabledOutputs=ucs.length?ucs.filter(e=>e.classList.contains('on')).map(e=>e.dataset.type):null;
   fetch(BASE+'/patients/'+PID+'/visits/start',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({audio_path:AUDIO_PATH||null, visit:$('visitPick').value?Number($('visitPick').value):null,
-                             config:{explainability:depth}})})
+                             config:{explainability:depth, enabled_outputs:enabledOutputs}})})
     .then(r=>{ if(!r.ok && !BASE) return; if(!r.ok) addStep({phase:'gap',message:'⚠ could not start the visit ('+r.status+') at '+(BASE||location.origin)}); })
     .catch(err=>{ addStep({phase:'gap',message:'⚠ could not reach the backend at '+(BASE||location.origin)+' — '+err}); });
 }
@@ -684,16 +699,18 @@ function renderContract(c){
   const out=$('ioOut'); out.innerHTML='';
   [...clin].sort((a,b)=>((ev[a]||{}).phase||'').localeCompare((ev[b]||{}).phase||'')||a.localeCompare(b))
     .forEach(t=>{ const row=document.createElement('div'); row.className='io-row';
-      const b=document.createElement('b'); b.textContent=t;
+      const b=document.createElement('b'); b.textContent=(ev[t]||{}).label||t; b.title=t;
       const ph=document.createElement('span'); ph.className='ph-badge'; ph.textContent=(ev[t]||{}).phase||'';
       row.append(b,ph); out.appendChild(row); });
   // Config: each clinical output as an enable toggle (all on = full contract).
   const g=$('cfgGrid'); g.innerHTML='';
-  [...clin].sort().forEach(t=>{ const el=document.createElement('div'); el.className='uc on'; el.dataset.type=t;
+  // trials default OFF (opt-in — searching + surfacing trials is a deliberate choice); all else on
+  [...clin].sort().forEach(t=>{ const el=document.createElement('div'); el.className='uc'+(t==='trial_match'?'':' on'); el.dataset.type=t;
     const sw=document.createElement('span'); sw.className='sw';
     const nm=document.createElement('span'); nm.className='ucn';
-    nm.innerHTML=''; nm.append(document.createTextNode(PRETTY(t)));
-    const sub=document.createElement('small'); sub.textContent=(ev[t]||{}).phase||''; nm.append(sub);
+    nm.innerHTML=''; nm.append(document.createTextNode((ev[t]||{}).label||PRETTY(t)));
+    const sub=document.createElement('small'); sub.textContent=(ev[t]||{}).description||(ev[t]||{}).phase||''; nm.append(sub);
+    el.title=(ev[t]||{}).description||'';
     el.append(sw,nm);
     el.onclick=()=>{ el.classList.toggle('on');  // toggles gate what surfaces (pre_visit_brief → watch-for card)
       if(t==='pre_visit_brief' && !el.classList.contains('on')) $('watchFor').hidden=true; };

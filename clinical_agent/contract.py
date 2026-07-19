@@ -246,6 +246,30 @@ CLINICAL_TYPES = {
     "trial_match", "longitudinal_delta", "longitudinal_narrative",
 }
 
+# Clinician-facing names + one-line descriptions of what enabling each output does.
+# The wire `type` stays stable; the UI renders these labels so a clinician sees plain terms.
+LABELS: dict[str, tuple[str, str]] = {
+    "pre_visit_brief":        ("Pre-visit watch-for",      "A briefing before the visit of what to watch for, from prior visits' voice signals."),
+    "observation":            ("Live voice notes",          "Real-time notes during the visit when a signal is worth the clinician's attention."),
+    "visit_summary":          ("Visit summary",             "An after-visit summary of the voice findings and where they agreed or disagreed with what was said."),
+    "visit_note":             ("Visit note (SOAP)",         "A drafted SOAP note from the conversation and this visit's diagnoses."),
+    "chart_draft":            ("Chart update drafts",       "Proposed chart updates for the clinician to review and approve."),
+    "topics":                 ("Next-visit topics",         "Things to raise at the next appointment."),
+    "trial_match":            ("Clinical trial matches",    "Recruiting trials relevant to a voice-flagged issue that wasn't the focus this visit."),
+    "longitudinal_delta":     ("Early-detection timeline",  "Per condition: when the voice first flagged it vs. when it was first coded."),
+    "longitudinal_narrative": ("Early-detection summary",   "A short plain-language summary of the voice-vs-chart early-detection story."),
+}
+
+
+def label_for(type: str) -> str:
+    entry = LABELS.get(type)
+    return entry[0] if entry else type.replace("_", " ").title()
+
+
+def description_for(type: str) -> str:
+    entry = LABELS.get(type)
+    return entry[1] if entry else ""
+
 
 def validate(type: str, data: dict) -> dict:
     """Validate a payload against its registered model; return the normalized dict.

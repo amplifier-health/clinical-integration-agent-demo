@@ -21,6 +21,8 @@
   "events": {
     "agent_token": {
       "clinical": false,
+      "description": "",
+      "label": "Agent Token",
       "phase": "telemetry",
       "schema": {
         "additionalProperties": false,
@@ -56,6 +58,8 @@
     },
     "agent_tool_call": {
       "clinical": false,
+      "description": "",
+      "label": "Agent Tool Call",
       "phase": "reasoning",
       "schema": {
         "additionalProperties": false,
@@ -85,6 +89,8 @@
     },
     "api_job_created": {
       "clinical": false,
+      "description": "",
+      "label": "Api Job Created",
       "phase": "telemetry",
       "schema": {
         "additionalProperties": false,
@@ -132,6 +138,8 @@
     },
     "api_job_result": {
       "clinical": false,
+      "description": "",
+      "label": "Api Job Result",
       "phase": "telemetry",
       "schema": {
         "$defs": {
@@ -297,6 +305,8 @@
     },
     "chart_draft": {
       "clinical": true,
+      "description": "Proposed chart updates for the clinician to review and approve.",
+      "label": "Chart update drafts",
       "phase": "post_visit",
       "schema": {
         "$defs": {
@@ -349,6 +359,8 @@
     },
     "chunk_created": {
       "clinical": false,
+      "description": "",
+      "label": "Chunk Created",
       "phase": "telemetry",
       "schema": {
         "additionalProperties": false,
@@ -389,6 +401,8 @@
     },
     "error": {
       "clinical": false,
+      "description": "",
+      "label": "Error",
       "phase": "lifecycle",
       "schema": {
         "additionalProperties": false,
@@ -431,6 +445,8 @@
     },
     "longitudinal_delta": {
       "clinical": true,
+      "description": "Per condition: when the voice first flagged it vs. when it was first coded.",
+      "label": "Early-detection timeline",
       "phase": "longitudinal",
       "schema": {
         "additionalProperties": false,
@@ -469,6 +485,8 @@
     },
     "longitudinal_narrative": {
       "clinical": true,
+      "description": "A short plain-language summary of the voice-vs-chart early-detection story.",
+      "label": "Early-detection summary",
       "phase": "longitudinal",
       "schema": {
         "additionalProperties": false,
@@ -492,6 +510,8 @@
     },
     "observation": {
       "clinical": false,
+      "description": "Real-time notes during the visit when a signal is worth the clinician's attention.",
+      "label": "Live voice notes",
       "phase": "reasoning",
       "schema": {
         "additionalProperties": false,
@@ -520,6 +540,8 @@
     },
     "pre_visit_brief": {
       "clinical": true,
+      "description": "A briefing before the visit of what to watch for, from prior visits' voice signals.",
+      "label": "Pre-visit watch-for",
       "phase": "pre_visit",
       "schema": {
         "additionalProperties": false,
@@ -559,6 +581,8 @@
     },
     "topics": {
       "clinical": true,
+      "description": "Things to raise at the next appointment.",
+      "label": "Next-visit topics",
       "phase": "post_visit",
       "schema": {
         "additionalProperties": false,
@@ -590,6 +614,8 @@
     },
     "transcript": {
       "clinical": false,
+      "description": "",
+      "label": "Transcript",
       "phase": "telemetry",
       "schema": {
         "additionalProperties": false,
@@ -625,6 +651,8 @@
     },
     "trial_match": {
       "clinical": true,
+      "description": "Recruiting trials relevant to a voice-flagged issue that wasn't the focus this visit.",
+      "label": "Clinical trial matches",
       "phase": "post_visit",
       "schema": {
         "additionalProperties": false,
@@ -677,6 +705,8 @@
     },
     "visit_complete": {
       "clinical": false,
+      "description": "",
+      "label": "Visit Complete",
       "phase": "lifecycle",
       "schema": {
         "additionalProperties": false,
@@ -700,6 +730,8 @@
     },
     "visit_note": {
       "clinical": true,
+      "description": "A drafted SOAP note from the conversation and this visit's diagnoses.",
+      "label": "Visit note (SOAP)",
       "phase": "post_visit",
       "schema": {
         "$defs": {
@@ -781,6 +813,8 @@
     },
     "visit_started": {
       "clinical": false,
+      "description": "",
+      "label": "Visit Started",
       "phase": "lifecycle",
       "schema": {
         "additionalProperties": false,
@@ -814,6 +848,8 @@
     },
     "visit_summary": {
       "clinical": true,
+      "description": "An after-visit summary of the voice findings and where they agreed or disagreed with what was said.",
+      "label": "Visit summary",
       "phase": "post_visit",
       "schema": {
         "$defs": {

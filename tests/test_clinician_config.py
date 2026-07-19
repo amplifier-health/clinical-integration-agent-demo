@@ -31,6 +31,28 @@ def test_depth_prompt_differs_per_level():
     assert "minimal" in prompts["minimal"] and "detailed" in prompts["detailed"]
 
 
+def test_output_enabled_logic():
+    assert ClinicianConfig().output_enabled("trial_match") is True          # None = all enabled
+    cfg = ClinicianConfig(enabled_outputs=["topics"])
+    assert cfg.output_enabled("topics") is True
+    assert cfg.output_enabled("trial_match") is False
+
+
+async def test_emit_suppresses_disabled_clinical_outputs():
+    from clinical_agent.events import EventBus as _Bus
+    bus = _Bus()
+    q = bus.subscribe()
+    set_config(ClinicianConfig(enabled_outputs=["topics"]))
+    await bus.emit("chart_draft", patient="p", visit=1, items=[])   # clinical, disabled → dropped
+    await bus.emit("topics", patient="p", visit=1, items=["x"])     # clinical, enabled → delivered
+    await bus.emit("chunk_created", patient="p", chunk=1, start_s=0.0, end_s=30.0)  # telemetry → always
+    types = []
+    while not q.empty():
+        types.append(q.get_nowait()["type"])
+    assert types == ["topics", "chunk_created"]
+    set_config(ClinicianConfig())  # reset for other tests
+
+
 async def test_reasoner_system_prompt_reflects_depth(tmp_path, monkeypatch):
     store = PatientStore(tmp_path)
     generate_synthetic_patient(store)

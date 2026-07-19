@@ -24,6 +24,8 @@ def build() -> dict:
         events[type_name] = {
             "phase": phase,
             "clinical": type_name in contract.CLINICAL_TYPES,
+            "label": contract.label_for(type_name),
+            "description": contract.description_for(type_name),
             "schema": model.model_json_schema(),
         }
     return {
