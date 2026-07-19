@@ -215,6 +215,13 @@ async def reason_over_chunk(settings: Settings, bus: EventBus, store: PatientSto
     return text
 
 
+# Validated screening instrument per vocal signal (voice flag → offer this screener).
+_SIGNAL_SCREENERS = {
+    "anxiety": ("GAD-7", "Anxiety"),
+    "mood-disruption": ("PHQ-9", "Depression"),
+}
+
+
 def _clinical_trials_tool(bus: EventBus, pid: str):
     """A tool that searches ClinicalTrials.gov and emits a `trial_match` per result."""
     async def _search(inp: dict) -> str:
@@ -279,6 +286,19 @@ async def post_visit_summary(settings: Settings, bus: EventBus, store: PatientSt
                    screener_recommendations=summary["screener_recommendations"])
     await bus.emit("chart_draft", patient=pid, visit=visit_no, items=summary["chart_update_draft"])
     await bus.emit("topics", patient=pid, visit=visit_no, items=summary["next_visit_topics"])
+
+    # Suggested screening — deterministic (validated instrument per flagged signal), so it works
+    # even in mock mode. Opt-in: only when the clinician enabled the screener output.
+    if current_config().output_enabled("screener_suggested"):
+        offered = set()
+        for s in all_signals:
+            if not s.get("flagged"):
+                continue
+            m = _SIGNAL_SCREENERS.get(s.get("name"))
+            if m and m[0] not in offered:
+                offered.add(m[0])
+                await bus.emit("screener_suggested", patient=pid, visit=visit_no,
+                               instrument=m[0], condition=m[1], signal=s.get("name"))
 
     # Clinical trials — only when the clinician enabled that output (opt-in; needs live Claude to
     # call the tool). Searches for the single undiscussed gap; emits a trial_match per result.

@@ -1,6 +1,6 @@
 import pytest
 
-from clinical_agent.agents import roles
+from clinical_agent.agents import base, roles
 from clinical_agent.agents.base import ClaudeAgent
 from clinical_agent.clinician_config import ClinicianConfig, current_config, set_config
 from clinical_agent.config import Settings
@@ -51,6 +51,37 @@ async def test_emit_suppresses_disabled_clinical_outputs():
         types.append(q.get_nowait()["type"])
     assert types == ["topics", "chunk_created"]
     set_config(ClinicianConfig())  # reset for other tests
+
+
+async def _run_postvisit(tmp_path, cfg):
+    import json
+    store = PatientStore(tmp_path)
+    generate_synthetic_patient(store)
+    base.MOCK_RESPONSES["postvisit"] = json.dumps(
+        {"summary": "s", "vocal_findings": [], "transcript_findings": [], "discordance": "none",
+         "screener_recommendations": [], "chart_update_draft": [], "next_visit_topics": []})
+    settings = Settings(mock_claude=True, data_dir=tmp_path)
+    bus = EventBus(); q = bus.subscribe()
+    set_config(cfg)
+    flagged = [{"name": "anxiety", "level": "moderate", "flagged": True},
+               {"name": "mood-disruption", "level": "moderate", "flagged": True}]
+    await roles.post_visit_summary(settings, bus, store, "demo-synthetic", 10, ["t"], flagged, [], {})
+    out = []
+    while not q.empty():
+        out.append(q.get_nowait())
+    set_config(ClinicianConfig())
+    return [e for e in out if e["type"] == "screener_suggested"]
+
+
+async def test_screeners_emitted_when_enabled(tmp_path):
+    screeners = await _run_postvisit(tmp_path, ClinicianConfig())  # all outputs on
+    instruments = sorted(e["instrument"] for e in screeners)
+    assert instruments == ["GAD-7", "PHQ-9"]
+
+
+async def test_screeners_absent_when_disabled(tmp_path):
+    screeners = await _run_postvisit(tmp_path, ClinicianConfig(enabled_outputs=["visit_summary"]))
+    assert screeners == []
 
 
 async def test_reasoner_system_prompt_reflects_depth(tmp_path, monkeypatch):

@@ -4,6 +4,7 @@
     "longitudinal_delta",
     "longitudinal_narrative",
     "pre_visit_brief",
+    "screener_suggested",
     "topics",
     "trial_match",
     "visit_note",
@@ -576,6 +577,47 @@
           "topics_to_discuss"
         ],
         "title": "PreVisitBrief",
+        "type": "object"
+      }
+    },
+    "screener_suggested": {
+      "clinical": true,
+      "description": "Validated screeners (e.g. PHQ-9, GAD-7) for flagged conditions, offered as orders to administer.",
+      "label": "Suggested screening",
+      "phase": "post_visit",
+      "schema": {
+        "additionalProperties": false,
+        "description": "A validated screening instrument suggested for a voice-flagged condition, offered as an\norder the clinician can administer to the patient.",
+        "properties": {
+          "condition": {
+            "title": "Condition",
+            "type": "string"
+          },
+          "instrument": {
+            "title": "Instrument",
+            "type": "string"
+          },
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "signal": {
+            "title": "Signal",
+            "type": "string"
+          },
+          "visit": {
+            "title": "Visit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient",
+          "visit",
+          "instrument",
+          "condition",
+          "signal"
+        ],
+        "title": "ScreenerSuggested",
         "type": "object"
       }
     },
