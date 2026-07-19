@@ -660,21 +660,38 @@ function addScreenerOrder(d){  // suggested screener → the Orders tab, with an
   _orders++; const b=$('ordersCount'); b.textContent=_orders; b.hidden=false;
 }
 function addLiteratureToNote(d){  // PubMed citation → "Supporting Literature" in the Note (detailed depth only)
+  // Fields come from the PubMed API (untrusted) — build via textContent, never innerHTML.
   $('litHd').style.display='block';
   const el=document.createElement('div'); el.className='addendum';
-  const t=d.url?`<a href="${d.url}" target="_blank" rel="noopener">${d.title||d.pmid}</a>`:(d.title||d.pmid||'');
-  el.innerHTML=`<div class="tag">${sparkSvg} PubMed · evidence</div>`
-    +`<div>${t}</div>`
-    +`<div class="fu-why" style="margin-top:2px;color:var(--muted)">${[d.journal,d.year].filter(Boolean).join(' · ')} · PMID ${d.pmid||''}</div>`;
+  const tag=document.createElement('div'); tag.className='tag'; tag.innerHTML=sparkSvg;
+  tag.append(document.createTextNode(' PubMed · evidence'));
+  const titleWrap=document.createElement('div');
+  const label=(d.title||d.pmid||'');
+  let safeHref=null;
+  try{ const u=new URL(d.url); if(u.protocol==='http:'||u.protocol==='https:') safeHref=u.href; }catch(_){}
+  if(safeHref){ const a=document.createElement('a'); a.href=safeHref; a.target='_blank'; a.rel='noopener';
+    a.textContent=label; titleWrap.appendChild(a); }
+  else titleWrap.textContent=label;
+  const meta=document.createElement('div'); meta.className='fu-why';
+  meta.style.marginTop='2px'; meta.style.color='var(--muted)';
+  meta.textContent=[d.journal,d.year].filter(Boolean).join(' · ')+' · PMID '+(d.pmid||'');
+  el.append(tag,titleWrap,meta);
   $('litMount').appendChild(el);
 }
-function addTrialToNote(d){  // renders inside the Note (not a side panel), under "Surfaced Clinical Trials"
+function addTrialToNote(d){  // renders inside the Note, under "Surfaced Clinical Trials"
+  // Fields come from the ClinicalTrials.gov API (untrusted) — build via textContent, never innerHTML.
   $('trialsHd').style.display='block';
   const el=document.createElement('div'); el.className='addendum';
-  el.innerHTML=`<div class="tag">${sparkSvg} Clinical trial · ambient</div>`
-    +`<div><b>${d.nct_id||''}</b> — ${d.title||''}</div>`
-    +(d.why_relevant?`<div class="fu-why" style="margin-top:3px">${d.why_relevant}</div>`:'')
-    +(d.eligibility_hint?`<div class="fu-why" style="margin-top:2px;color:var(--muted)">▸ ${d.eligibility_hint}</div>`:'');
+  const tag=document.createElement('div'); tag.className='tag'; tag.innerHTML=sparkSvg;
+  tag.append(document.createTextNode(' Clinical trial · ambient'));
+  const line=document.createElement('div');
+  const b=document.createElement('b'); b.textContent=d.nct_id||'';
+  line.append(b, document.createTextNode(' — '+(d.title||'')));
+  el.append(tag,line);
+  if(d.why_relevant){ const w=document.createElement('div'); w.className='fu-why'; w.style.marginTop='3px';
+    w.textContent=d.why_relevant; el.appendChild(w); }
+  if(d.eligibility_hint){ const e=document.createElement('div'); e.className='fu-why';
+    e.style.marginTop='2px'; e.style.color='var(--muted)'; e.textContent='▸ '+d.eligibility_hint; el.appendChild(e); }
   $('trialsMount').appendChild(el);
 }
 function addNextTopics(d){ (d.items||[]).slice(0,3).forEach(t=>addFollow({text:t,why:'To raise at the next visit',discussed:false})); }

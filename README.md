@@ -4,7 +4,7 @@ Built for the **Abridge × Anthropic × Lightspeed hackathon** ("The Future of A
 
 Ambient scribes capture **what** the patient says. This agent captures **how** they say it — it runs the visit audio through the [Amplifier Health voice-biomarker API](https://docs.amplifierhealth.com) and reasons over the signals with Claude, live, to surface conditions the words alone miss: depression, anxiety, PCOS/androgen changes, iron deficiency, fatigue, and more.
 
-It is designed as a **plug-in layer for an existing ambient scribe**, not a competitor to one. The scribe already has the microphone and the transcript; this agent adds a parallel signal — the voice — and returns typed events the host UI can render on its existing surfaces (suggested topics, the note, flowsheets, an AI panel).
+It is designed as a **plug-in layer for an existing ambient scribe**, not a competitor to one. The scribe already has the microphone and the transcript; this agent adds a parallel signal — the voice — and returns typed events the host UI can render on its existing surfaces (voice signals on the capture screen, the clinical note, an orders tab, a behind-the-scenes reasoning view).
 
 > **Not a diagnostic device.** The agent never diagnoses. It describes vocal-biomarker signals, suggests validated screeners (PHQ-9, GAD-7), and drafts chart updates for a clinician to approve. The clinician is always the decision-maker.
 
@@ -18,7 +18,7 @@ The agent works across the three stages of an encounter, and closes a longitudin
 |---|---|
 | **Before visit** | Reads the patient's prior chart + prior vocal results and produces a "watch-for" brief — vocal trends, discordances, topics to raise. |
 | **During visit** | Scores the audio in ~30s chunks through Amplifier, reasons over each result with the transcript, and streams observations — especially **discordance** (patient says "I'm fine"; the voice says otherwise). Alert-fatigue controls decide what's worth interrupting the visit for. |
-| **After visit** | Drafts a SOAP note, a vocal-findings section, screener suggestions, a chart-update draft (for approval), the care-gap list (voice-flagged but never discussed), and matched clinical trials for the gap. |
+| **After visit** | Drafts a SOAP note, a vocal-findings section, a chart-update draft (for approval), and next-visit topics. Opt-in extras (clinician-configurable): suggested screener **orders** (GAD-7/PHQ-9), matched **clinical trials** for a care gap, and — at "detailed" depth — **PubMed citations** for the main finding. |
 
 **The differentiated output — longitudinal early detection.** Across successive visits, the agent computes, per condition, the gap between when the **voice first flagged** a signal and when the condition was **first ICD-10 coded**. On the real demo patient: the voice flagged anxiety ~68 days and PCOS ~119 days before the chart coded them, with mood disruption still rising and uncoded.
 
@@ -46,10 +46,10 @@ The agent works across the three stages of an encounter, and closes a longitudin
                                           │
                                  typed event stream (SSE)
                                           ▼
-             mobile topics · note · flowsheet · AI panel · reasoning view
+        mobile voice-signals · clinical note (orders / literature) · reasoning view
 ```
 
-Every stage emits **typed, versioned events** onto one bus, streamed over SSE. Each Abridge-style surface is just a filtered view of that one stream. The reasoner and the post-visit agent share **one Claude conversation** for the whole visit, so the final analysis is done by an agent that watched the entire encounter.
+Every stage emits **typed, versioned events** onto one bus, streamed over SSE. Each Abridge-style surface is just a filtered view of that one stream. The reasoner and the post-visit agent share **one Claude conversation** for the whole visit, so the final analysis is done by an agent that watched the entire encounter, and reasons over the *full* voice-biomarker object (condition signals + 18 wellness dimensions + speech prosody) — translating it into qualitative clinical language, never raw scores.
 
 - **Backend:** Python, FastAPI, httpx, Anthropic SDK (Claude Opus 4.8), pydantic. faster-whisper + pydub for the live-audio path (ffmpeg required for non-WAV).
 - **Frontend:** a self-contained Abridge-style clinician UI (`mock_agent/viewer.html`) that speaks the backend's event contract directly — no adapter.
@@ -77,8 +77,19 @@ Key clinical event types (full schema in `docs/contract/contract.json`):
 | `visit_note` | SOAP note (chief complaint / subjective / objective / assessment / plan) |
 | `chart_draft` | Chart-update draft for clinician approval |
 | `topics` | Topics for the next visit |
-| `trial_match` | Recruiting clinical trial matched to the care gap |
+| `screener_suggested` | Validated screener order (GAD-7/PHQ-9) for a flagged condition *(opt-in)* |
+| `trial_match` | Recruiting clinical trial matched to a care gap *(opt-in)* |
+| `literature_ref` | PubMed citation supporting the main finding *(only at "detailed" depth)* |
 | `longitudinal_delta` | Per-condition: voice-flagged visit vs. first-coded visit |
+
+`visit_analyzing` (lifecycle) marks the moment live reasoning ends and the note is being written, so the UI can leave the "recording" state.
+
+### Clinician settings (configured from the UI, sent per visit)
+
+Config rides `POST /visits/start` as `{config: {...}}`, bound per-visit via a contextvar so the agents read it without threading it through every call (`clinical_agent/clinician_config.py`):
+
+- **Explanation depth** — `minimal` / `standard` / `detailed`: how much rationale each output carries. `detailed` additionally pulls real PubMed citations.
+- **Enabled outputs** — which clinical event types surface. Suppression happens at the single emit gate; only clinical types are gateable (lifecycle/telemetry/reasoning always flow). Screeners and trials default **off** (opt-in).
 
 ---
 
@@ -89,9 +100,11 @@ Key clinical event types (full schema in `docs/contract/contract.json`):
 | `GET /patients` | List patients |
 | `GET /patients/{id}/chart` | Patient chart (visits, codes, prior signals, notes) |
 | `GET /patients/{id}/visits` | Visit list (for an appointment picker) |
-| `POST /patients/{id}/visits/start` | Start a visit. Body `{visit?, audio_path?, config?}` — omit `audio_path` to replay the appointment from precomputed results |
+| `POST /patients/{id}/visits/start` | Start a visit. Body `{visit?, audio_path?, config?}` — omit `audio_path` to replay the appointment from precomputed results. Supersedes any running visit. |
+| `POST /patients/{id}/visits/stop` | Cancel the running visit (UI calls this when switching appointments) |
 | `WS /patients/{id}/visits/stream` | **Real ingestion boundary** — the scribe streams PCM frames + `visit.start`/`visit.end`; we bucket into the 30s/15s pipeline. (The demo mocks this with replay.) |
 | `GET /events` | SSE stream of typed events |
+| `GET /patients/{id}/visits/{n}/audio` | The visit's recording (demo plays it back, sped up) |
 | `GET /patients/{id}/visits/{n}/result` | Folded snapshot of a completed visit |
 | `POST /patients/{id}/longitudinal` | Run the cross-visit early-detection analysis |
 | `GET /contract` | The machine-readable output contract |
@@ -154,7 +167,9 @@ Demo mode and real mode run the **same code path** — only config and data diff
 
 ## How a demo visit runs (replay, not live audio)
 
-A demo visit is replayed from precomputed data — no audio is streamed, Whisper is never called. `replay_visit` reads the appointment's stored per-chunk `aria` results and emits them on the same contract as a live visit, while the diarized transcript is pretend-streamed **time-aligned** to each tick (standing in for the live ASR a scribe would provide in production). The **agent reasoning is real Claude**; only the audio stream and the Amplifier call are mocked. Each appointment reasons over only the visits that precede it (`chart(before=N)`), so the early-detection reasoning is causal, not clairvoyant.
+A demo visit is replayed from precomputed data — no audio is streamed *into* the pipeline, Whisper is never called. `replay_visit` reads the appointment's stored per-chunk `aria` results and emits them on the same contract as a live visit, while the diarized transcript is pretend-streamed **time-aligned** to each tick (standing in for the live ASR a scribe would provide in production). The **agent reasoning is real Claude**; only the audio stream and the Amplifier call are mocked. Each appointment reasons over only the visits that precede it (`chart(before=N)`), so the early-detection reasoning is causal, not clairvoyant.
+
+For presentation, the UI plays the visit's **real recording sped up** (so you can hear the encounter) and stops the "recording" state automatically when live reasoning finishes (`visit_analyzing`), while the note continues to fill. Selecting a different appointment cancels the running visit so its reasoning can't bleed into the next.
 
 ---
 
@@ -162,10 +177,12 @@ A demo visit is replayed from precomputed data — no audio is streamed, Whisper
 
 ```
 clinical_agent/        backend package
-  contract.py          the versioned output contract (pydantic models + registry)
-  events.py            event bus: validates + envelopes every event; session/seq scoping
-  session.py           run_visit (live) and replay_visit (precomputed) orchestration
-  agents/roles.py      pre-visit, per-chunk reasoner, post-visit, SOAP note, longitudinal, trials
+  contract.py          the versioned output contract (pydantic models + registry + labels)
+  clinician_config.py  per-visit clinician settings (explanation depth, enabled outputs)
+  events.py            event bus: config-gated suppression, validates + envelopes every event
+  session.py           run_visit (live) · replay_visit (precomputed) · run_streaming_visit (WebSocket)
+  streaming.py         AudioBucketer — buckets streamed PCM into the 30s/15s pipeline
+  agents/roles.py      pre-visit, reasoner, post-visit, SOAP note, longitudinal, screeners, trials, PubMed
   agents/base.py       Claude wrapper (streaming, tools, rehearsal-cache fallback, mock mode)
   amplifier.py         async Amplifier client (rate limits, 429 retry, result cache, offline mode)
   store.py             JSON patient store (chart, visits, per-visit artifacts)
