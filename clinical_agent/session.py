@@ -7,6 +7,7 @@ from clinical_agent.agents import roles
 from clinical_agent.amplifier import AmplifierClient
 from clinical_agent.audio import chunk_file
 from clinical_agent.config import Settings
+from clinical_agent.clinician_config import ClinicianConfig, set_config
 from clinical_agent.events import EventBus, start_session
 from clinical_agent.store import PatientStore
 from clinical_agent.transcribe import Transcriber
@@ -15,7 +16,8 @@ from clinical_agent.transcribe import Transcriber
 async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
                     transcriber: Transcriber, amplifier: AmplifierClient,
                     pid: str, audio_path: Path | None = None,
-                    visit_number: int | None = None) -> dict:
+                    visit_number: int | None = None,
+                    config: ClinicianConfig | None = None) -> dict:
     visits = store.list_visits(pid)
     if visit_number is not None:  # demo toggle: replay any appointment as if it were live
         current = next((v for v in visits if v.number == visit_number), None)
@@ -31,6 +33,7 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
             raise ValueError(f"no audio on file for visit {current.number} of patient {pid}")
         audio_path = Path(pick)
     start_session(patient_id=pid, visit=current.number)
+    set_config(config or ClinicianConfig())
     await bus.emit("visit_started", patient=pid, visit=current.number, date=current.date,
                    reason=current.reason)
 
@@ -127,7 +130,8 @@ def _timed_segments(transcript) -> list[tuple[float, str, str]]:
 
 
 async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
-                       pid: str, visit_number: int | None = None) -> dict:
+                       pid: str, visit_number: int | None = None,
+                       config: ClinicianConfig | None = None) -> dict:
     """Replay a visit from its precomputed per-chunk aria results — no audio, no Whisper, no
     chunker. This is the 'mock the API, speed through the appointment' demo path: the signals
     are the real precomputed ones, the agent reasoning is live."""
@@ -144,6 +148,7 @@ async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
                          f"pipeline for this visit or import its aria results")
 
     start_session(patient_id=pid, visit=current.number)
+    set_config(config or ClinicianConfig())
     await bus.emit("visit_started", patient=pid, visit=current.number, date=current.date,
                    reason=current.reason)
     brief = await roles.pre_visit_brief(settings, bus, store, pid, before=current.number)

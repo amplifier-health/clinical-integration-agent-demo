@@ -661,8 +661,10 @@ function play(){
   on('visit_complete',()=>{ ended=true; clearInterval(timer); setRecUI('done'); if(es)es.close(); });
   on('end',()=>{ ended=true; clearInterval(timer); setRecUI('done'); if(es)es.close(); });  // mock server terminator
   // trigger the backend visit (stream-first). No-op for the offline mock server, which replays on connect.
+  const depth=($('depthSeg').querySelector('button.on')||{}).dataset?.d||'standard';
   fetch(BASE+'/patients/'+PID+'/visits/start',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({audio_path:AUDIO_PATH||null, visit:$('visitPick').value?Number($('visitPick').value):null})})
+        body:JSON.stringify({audio_path:AUDIO_PATH||null, visit:$('visitPick').value?Number($('visitPick').value):null,
+                             config:{explainability:depth}})})
     .then(r=>{ if(!r.ok && !BASE) return; if(!r.ok) addStep({phase:'gap',message:'⚠ could not start the visit ('+r.status+') at '+(BASE||location.origin)}); })
     .catch(err=>{ addStep({phase:'gap',message:'⚠ could not reach the backend at '+(BASE||location.origin)+' — '+err}); });
 }

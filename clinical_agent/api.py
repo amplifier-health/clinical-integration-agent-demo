@@ -18,6 +18,7 @@ from clinical_agent.transcribe import Transcriber
 class StartVisit(BaseModel):
     audio_path: str | None = None  # omit to replay the selected appointment's own audio
     visit: int | None = None       # which appointment to run; default = the planned visit
+    config: dict | None = None     # per-visit clinician settings (e.g. {"explainability": "detailed"})
 
 
 def create_app(settings: Settings, store: PatientStore, bus: EventBus,
@@ -94,15 +95,18 @@ def create_app(settings: Settings, store: PatientStore, bus: EventBus,
 
     @app.post("/patients/{pid}/visits/start", status_code=202)
     async def start_visit(pid: str, body: StartVisit):
+        from clinical_agent.clinician_config import ClinicianConfig
         from clinical_agent.session import replay_visit, run_visit
+
+        cfg = ClinicianConfig.from_override(body.config)
 
         async def job():
             try:
                 if body.audio_path:  # true live stream from a WAV
                     await run_visit(settings, bus, store, transcriber, amplifier, pid,
-                                    Path(body.audio_path), visit_number=body.visit)
+                                    Path(body.audio_path), visit_number=body.visit, config=cfg)
                 else:  # demo default: replay the appointment from its precomputed aria results
-                    await replay_visit(settings, bus, store, pid, visit_number=body.visit)
+                    await replay_visit(settings, bus, store, pid, visit_number=body.visit, config=cfg)
             except Exception as exc:
                 await bus.emit("error", patient=pid, message=str(exc))
 
