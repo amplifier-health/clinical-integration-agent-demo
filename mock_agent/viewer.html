@@ -192,7 +192,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .reason-log{flex:1;overflow:auto;padding:14px 18px;font-size:12.5px;line-height:1.55;display:flex;flex-direction:column;gap:2px}
 .rstep{display:flex;gap:9px;padding:5px 0;border-bottom:1px solid #241d16;animation:fadein .35s ease both}
 .rstep .ph{flex:none;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:6px;height:fit-content;margin-top:1px}
-.ph-score{background:#1d2b33;color:#7fc7e0}.ph-reason{background:#2a2130;color:#c79be6}.ph-post{background:#2b271a;color:#d6c07f}
+.ph-score,.ph-biomarker{background:#1d2b33;color:#7fc7e0}.ph-reason{background:#2a2130;color:#c79be6}.ph-post{background:#2b271a;color:#d6c07f}
 .ph-gap{background:#31261a;color:#e0a86a}.ph-trials{background:#1e2a20;color:#89ce9f}.ph-done{background:#26201a;color:#b8a98f}
 .rstep .msg{color:#d8cdb9}.rstep .msg .api{color:#7fc7e0}
 .rbio{font-family:ui-monospace,monospace;font-size:11px;padding:3px 0 3px 68px;color:#9a8d78;display:flex;flex-wrap:wrap;gap:8px}
@@ -465,6 +465,7 @@ async function loadChart(){
     const p=chart.patient||{};  // real backend nests patient meta here
     chart.name=chart.name||p.alias||PID; chart.age=chart.age||p.age; chart.sex=chart.sex||p.sex;
     chart.problems=chart.problems||[]; chart.meds=chart.meds||[]; CHART_VISITS=chart.visits||[];
+    renderVisitOptions();   // re-render the dropdown stars now that per-visit signals are loaded
     const init=(chart.name||'?').split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase();
     $('mName').textContent=chart.name; $('mMrn').textContent='MRN '+(chart.mrn||'—'); $('mAv').textContent=init;
     $('nName').textContent=chart.name; $('nMrn').textContent='MRN '+(chart.mrn||'—'); $('nAv').textContent=init;
@@ -511,22 +512,33 @@ function seedPriorContext(){  // seed the note with what we already KNOW before 
       `<div class="kv">• ${o.label} <span style="color:var(--muted)">— flagged in ${o.count} prior visit${o.count>1?'s':''}, most recent ${o.tier}</span></div>`).join(''); }
   mount.innerHTML=h;
 }
+// Early-detection stars: the appointments where the voice caught a condition BEFORE it was
+// ICD-10 coded — v1 (elevated BP + anxiety, first flagged; coded later) and v5 (elevated
+// androgens, first flagged; coded at v12).
+const STAR_VISITS=new Set([1,5]);
+function computeEarlyStars(){ return STAR_VISITS; }
+function renderVisitOptions(){
+  const sel=$('visitPick'); if(!sel||!ALL_VISITS.length) return;
+  const stars=computeEarlyStars(), cur=sel.value;
+  sel.innerHTML='';
+  ALL_VISITS.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(v=>{
+    const codes=(v.icd10||[]).map(c=>c.code).join(', ');
+    const planned=v.status==='planned', star=stars.has(v.number)?'⭐ ':'';
+    const o=document.createElement('option'); o.value=planned?'':v.number;
+    o.textContent=`${star}${v.date||'—'} · ${v.reason||('visit '+v.number)}${codes?' ('+codes+')':''}${planned?' — today':''}`;
+    sel.appendChild(o);
+  });
+  sel.value=cur;
+  sel.onchange=resetToHome;   // new visit → reset the phone to home + reseed the note
+}
 loadChart();
 // Populate the appointment toggle so any appointment can be replayed with only its prior history.
 fetch(BASE+'/patients/'+PID+'/visits')
   .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
   .then(vs=>{
-    const sel=$('visitPick'); if(!Array.isArray(vs)||!vs.length) return;
+    if(!Array.isArray(vs)||!vs.length) return;
     ALL_VISITS=vs;
-    sel.innerHTML='';  // replace the placeholder once we actually have visits
-    vs.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(v=>{
-      const codes=(v.icd10||[]).map(c=>c.code).join(', ');
-      const planned=v.status==='planned';
-      const o=document.createElement('option'); o.value=planned?'':v.number;
-      o.textContent=`${v.date||'—'} · ${v.reason||('visit '+v.number)}${codes?' ('+codes+')':''}${planned?' — today':''}`;
-      sel.appendChild(o);
-    });
-    sel.onchange=resetToHome;   // new visit → reset the phone to home + reseed the note
+    renderVisitOptions();
     seedPriorContext();
   })
   .catch(e=>{ console.warn('could not load visits for '+PID+' at '+(BASE||location.origin)+':',e.message);
@@ -706,7 +718,7 @@ function play(){
   on('pre_visit_brief',d=>{ addStep({phase:'pre',message:'pre-visit brief · '+(d.brief||'')});  // full brief → behind the scenes
     showWatchFor(d); });                                                                          // concise "watch for" → phone (if enabled)
   on('transcript',d=>addStep({phase:'reason',message:'heard: '+(d.text||'')}));
-  on('api_job_created',d=>addStep({phase:'score',message:`chunk ${d.chunk} → POST /v2/models/${d.model||'aria'}/analyze → job ${d.job_id||''}`}));
+  on('api_job_created',d=>addStep({phase:'biomarker',message:`chunk ${d.chunk} → POST /v2/models/${d.model||'aria'}/analyze → job ${d.job_id||''}`}));
   on('api_job_result',d=>{ tokAgent=null;
     (d.signals||[]).forEach(addSignalChip);  // flagged voice signals → the mobile screen (brief, no numbers)
     const log=$('rlog');const el=document.createElement('div');el.className='rbio';  // qualitative tiers only — never raw scores
