@@ -51,7 +51,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(232,73,46,.55)}70%{box-shadow:0 0 0 9px rgba(232,73,46,0)}100%{box-shadow:0 0 0 0 rgba(232,73,46,0)}}
 .spacer{flex:1}
 .btn{padding:8px 15px;border-radius:10px;font-weight:600;font-size:13.5px;transition:.16s ease;border:1px solid transparent}
-.btn.play{background:linear-gradient(150deg,var(--amp-brown),var(--amp-ink));color:var(--amp-cream);box-shadow:0 6px 16px -8px rgba(35,18,0,.6)}
+.btn.play{background:linear-gradient(150deg,var(--amp-green),#b6ef5c);color:var(--amp-ink);font-weight:800;box-shadow:0 6px 18px -8px rgba(140,180,40,.75)}
 .btn.play:hover{transform:translateY(-1px)}
 .btn.play:disabled{opacity:.45;transform:none;cursor:default}
 .btn.ghost{border-color:var(--line);color:var(--ink-2);background:var(--surface)}
@@ -225,7 +225,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .io-tag{align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
   padding:4px 9px;border-radius:999px;margin-bottom:2px}
 .io-tag.scribe{background:var(--gap-soft);color:var(--gap)}
-.io-tag.ours{background:color-mix(in oklab,var(--amp-tan) 24%,#fff);color:var(--amp-brown)}
+.io-tag.ours{background:color-mix(in oklab,var(--amp-green) 34%,#fff);color:#3c5200}
 .io-row{font-size:13.5px;color:var(--ink-2)}.io-row b{color:var(--ink);font-weight:700}
 .io-note{margin-top:auto;font-size:12px;color:var(--muted);line-height:1.45;padding-top:4px}
 .chd{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);margin-bottom:10px}
@@ -245,19 +245,19 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .uc:hover{border-color:var(--amp-brown)}
 .uc .sw{width:32px;height:19px;border-radius:999px;background:var(--line);position:relative;flex:none;transition:.18s}
 .uc .sw::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:.18s}
-.uc.on .sw{background:var(--amp-brown)}.uc.on .sw::after{left:15px}
+.uc.on .sw{background:var(--amp-green)}.uc.on .sw::after{left:15px}
 .uc .ucn{font-size:13px;font-weight:600;color:var(--ink)}
 .uc.locked{opacity:.55;cursor:not-allowed}
 .uc .ucn small{display:block;font-weight:500;color:var(--muted);font-size:11px;letter-spacing:0}
-.ver-pill{font-size:11px;font-weight:700;color:var(--amp-brown);background:color-mix(in oklab,var(--amp-tan) 24%,#fff);
-  border:1px solid color-mix(in oklab,var(--amp-tan) 55%,#fff);border-radius:999px;padding:2px 9px;vertical-align:middle;margin-left:6px}
+.ver-pill{font-size:11px;font-weight:800;color:#3c5200;background:color-mix(in oklab,var(--amp-green) 34%,#fff);
+  border:1px solid color-mix(in oklab,var(--amp-green) 55%,#fff);border-radius:999px;padding:2px 9px;vertical-align:middle;margin-left:6px}
 .io-out{display:flex;flex-direction:column;gap:8px}
 .io-row .ph-badge{display:inline-block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;
   padding:1px 6px;border-radius:5px;margin-left:6px;background:var(--ambient-soft);color:var(--ambient);vertical-align:middle}
 .depthrow{display:flex;align-items:center;gap:12px;margin-top:12px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
 .seg button{padding:6px 13px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
-.seg button.on{background:var(--amp-brown);color:#fff}
+.seg button.on{background:var(--amp-green);color:var(--amp-ink);font-weight:800}
 .integ-foot{padding:16px 28px 24px;border-top:1px solid var(--line-2);display:flex;justify-content:flex-end}
 /* on-device (phone) configuration sheet, opened by the gear */
 .sug-label{position:relative}
@@ -286,8 +286,8 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
   transform:translateY(106%);transition:transform .28s cubic-bezier(.2,.8,.2,1)}
 .phone-config.open{transform:translateY(0)}
 .pc-hd{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;margin-bottom:6px;color:var(--amp-ink)}
-.pc-hd span{font-size:11px;font-weight:700;color:var(--amp-brown);background:color-mix(in oklab,var(--amp-tan) 24%,#fff);
-  border:1px solid color-mix(in oklab,var(--amp-tan) 55%,#fff);border-radius:999px;padding:1px 8px}
+.pc-hd span{font-size:11px;font-weight:800;color:#3c5200;background:color-mix(in oklab,var(--amp-green) 34%,#fff);
+  border:1px solid color-mix(in oklab,var(--amp-green) 55%,#fff);border-radius:999px;padding:1px 8px}
 .pc-x{margin-left:auto;font-size:14px;color:var(--muted);background:none;border:0;cursor:pointer}
 .pc-sec{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);margin:13px 0 8px}
 .phone-config .cfg-grid{grid-template-columns:1fr 1fr;gap:7px}
@@ -372,13 +372,13 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
     <div class="integ-body">
       <div class="io">
         <div class="io-col">
-          <div class="io-tag scribe">Scribe&nbsp;→&nbsp;us</div>
+          <div class="io-tag scribe">Scribe&nbsp;→&nbsp;biomarker-aware agent</div>
           <div class="io-row"><b>audio</b> streamed frames</div>
           <div class="io-row"><b>visit.start / visit.end</b></div>
         </div>
         <div class="io-mid">→</div>
         <div class="io-col">
-          <div class="io-tag ours">Us&nbsp;→&nbsp;scribe · typed events</div>
+          <div class="io-tag ours">Biomarker-aware agent&nbsp;→&nbsp;scribe · typed events</div>
           <div class="io-out" id="ioOut"><div class="io-row">loading contract…</div></div>
         </div>
       </div>
