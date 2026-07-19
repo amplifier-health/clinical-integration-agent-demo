@@ -333,9 +333,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
               <button data-d="minimal">minimal</button><button data-d="standard" class="on">standard</button><button data-d="detailed">detailed</button>
             </div>
           </div>
-          <div class="sug-list" id="sugList">
-            <div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div><div class="s">Voice signals surface here as they emerge</div></div></div>
-          </div>
+          <div class="sug-list" id="sugList"></div>
           <div class="wave" id="wave"></div>
           <div class="rec-hint" id="recHint">Tap to record</div>
           <div class="dock">
@@ -457,11 +455,13 @@ function setRecUI(state){ // 'recording' | 'done'
 function stopVisit(){ if(es)es.close(); clearInterval(timer); stopAudio(); setRecUI('done'); }
 function resetToHome(){  // selecting a different visit returns the phone to its pre-record home state
   if(es){ try{es.close();}catch(_){} es=null; }
-  clearInterval(timer); stopAudio(); streaming=false; sigShown.clear(); tokAgent=null;
+  fetch(BASE+'/patients/'+PID+'/visits/stop',{method:'POST'}).catch(()=>{});  // stop the old backend job
+  clearInterval(timer); stopAudio(); streaming=false; sigShown.clear(); tokAgent=null; tokBuf=null;
   secs=0; $('mTimer').textContent='0:00';
-  $('sugList').innerHTML='<div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div><div class="s">Voice signals surface here as they emerge</div></div></div>';
+  $('sugList').innerHTML='';   // home state: no "Listening…" until Start is pressed
   $('watchFor').hidden=true; $('wfItems').replaceChildren();
   $('rlog').innerHTML=''; $('phoneConfig').classList.remove('open'); $('opener').classList.remove('pinging');
+  const mem=$('mem'); if(mem) mem.textContent='memory: 0 msgs';  // reset the reasoner memory counter
   setRecUI('idle');
   seedNote(); seedPriorContext();   // reseed the note's pre-visit context for the chosen visit
 }
@@ -674,7 +674,7 @@ function addTrialToNote(d){  // renders inside the Note (not a side panel), unde
 function addNextTopics(d){ (d.items||[]).slice(0,3).forEach(t=>addFollow({text:t,why:'To raise at the next visit',discussed:false})); }
 
 function play(){
-  if(es)es.close(); sigShown.clear(); tokAgent=null;
+  if(es)es.close(); sigShown.clear(); tokAgent=null; tokBuf=null;
   $('sugList').innerHTML='<div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div><div class="s">Voice signals surface here as they emerge</div></div></div>';
   $('rlog').innerHTML='';seedNote();seedPriorContext();  // keep pre-visit context as the starting note
   _orders=0; const _ob=$('ordersBody'); if(_ob){_ob.innerHTML='<p id="ordersEmpty" style="color:var(--muted)">No orders yet. Suggested screening appears here when enabled.</p>';} const _oc=$('ordersCount'); if(_oc){_oc.textContent='0';_oc.hidden=true;}

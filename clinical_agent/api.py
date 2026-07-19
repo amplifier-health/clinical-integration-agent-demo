@@ -103,6 +103,14 @@ def create_app(settings: Settings, store: PatientStore, bus: EventBus,
 
         return StreamingResponse(stream(), media_type="text/event-stream")
 
+    def _cancel_running_visits():
+        """Stop any visit job still running so a new/selected appointment starts clean — otherwise
+        the old job keeps emitting its reasoning onto the shared bus and bleeds into the new one."""
+        for t in app.state.jobs:
+            if not t.done():
+                t.cancel()
+        app.state.jobs = []
+
     @app.post("/patients/{pid}/visits/start", status_code=202)
     async def start_visit(pid: str, body: StartVisit):
         from clinical_agent.clinician_config import ClinicianConfig
@@ -120,8 +128,15 @@ def create_app(settings: Settings, store: PatientStore, bus: EventBus,
             except Exception as exc:
                 await bus.emit("error", patient=pid, message=str(exc))
 
-        app.state.jobs.append(asyncio.create_task(job()))
+        _cancel_running_visits()  # a new visit supersedes any still-running one
+        app.state.jobs = [asyncio.create_task(job())]
         return {"status": "started"}
+
+    @app.post("/patients/{pid}/visits/stop", status_code=202)
+    async def stop_visit(pid: str):
+        """Cancel the running visit — called when the UI switches appointments or is reset."""
+        _cancel_running_visits()
+        return {"status": "stopped"}
 
     @app.websocket("/patients/{pid}/visits/stream")
     async def visit_stream(ws: WebSocket, pid: str, visit: int | None = None):
