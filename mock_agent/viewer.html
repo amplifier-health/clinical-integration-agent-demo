@@ -264,8 +264,18 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .gear:hover{opacity:1;background:rgba(0,0,0,.07)}
 /* concise pre-visit "watch for" card on the phone (shown only if pre_visit_brief is enabled) */
 .watchfor{margin:6px 20px 2px;background:var(--gap-soft);border:1px solid color-mix(in oklab,var(--gap) 32%,#fff);
-  border-radius:14px;padding:9px 13px;animation:fadein .4s both}
-.wf-hd{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--gap);margin-bottom:5px}
+  border-radius:14px;padding:9px 13px;animation:fadein .4s both;cursor:pointer;
+  transition:opacity .3s ease, transform .3s ease}
+.watchfor:hover{border-color:color-mix(in oklab,var(--gap) 55%,#fff)}
+.watchfor:focus-visible{outline:2px solid var(--gap);outline-offset:2px}
+.watchfor.dismissing{opacity:0;transform:translateY(-6px)}
+.wf-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
+.wf-hd{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--gap)}
+.wf-check{width:22px;height:22px;border-radius:50%;flex:none;position:relative;
+  border:2px solid color-mix(in oklab,var(--gap) 45%,#fff);background:#fff;transition:.15s}
+.watchfor.checked .wf-check{background:var(--gap);border-color:var(--gap)}
+.watchfor.checked .wf-check::after{content:"";position:absolute;left:6px;top:2.5px;width:5px;height:10px;
+  border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
 .wf-items{display:flex;flex-direction:column;gap:3px}
 .wf-items .wf{font-size:12.5px;color:var(--ink);line-height:1.3}
 .phone-config{position:absolute;left:0;right:0;bottom:0;z-index:9;max-height:80%;overflow:auto;
@@ -307,8 +317,9 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
             <div><div class="nm" id="mName">—</div><div class="mrn" id="mMrn">MRN —</div></div>
             <div class="timer" id="mTimer">0:00</div>
           </div>
-          <div class="watchfor" id="watchFor" hidden>
-            <div class="wf-hd">◆ Watch for · from prior visits</div>
+          <div class="watchfor" id="watchFor" hidden role="button" tabindex="0" aria-label="Acknowledge watch-for">
+            <div class="wf-top"><div class="wf-hd">◆ Watch for · from prior visits</div>
+              <span class="wf-check" id="wfCheck"></span></div>
             <div class="wf-items" id="wfItems"></div>
           </div>
           <div class="sug-label">Voice-biomarker signals<button class="gear" id="gearBtn" aria-label="Configuration">⚙</button></div>
@@ -590,7 +601,12 @@ function showWatchFor(d){ // concise pre-visit "watch for" on the phone, gated o
   const m=$('wfItems'); m.replaceChildren();
   items.forEach(t=>{ const el=document.createElement('div'); el.className='wf';
     el.textContent='• '+(t.length>64?t.slice(0,62)+'…':t); m.appendChild(el); });
-  $('watchFor').hidden=false;
+  $('watchFor').classList.remove('checked','dismissing'); $('watchFor').hidden=false;
+}
+function dismissWatchFor(){ const box=$('watchFor'); if(box.hidden||box.classList.contains('checked'))return;
+  box.classList.add('checked');                                   // show the tick
+  setTimeout(()=>box.classList.add('dismissing'),320);            // then fade out
+  setTimeout(()=>{ box.hidden=true; box.classList.remove('checked','dismissing'); },640);
 }
 function addObservation(text){ // reasoner prose → behind-the-scenes log only, never the phone
   tokAgent=null; const t=(text||'').trim(); if(!t)return;
@@ -688,6 +704,8 @@ $('depthSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
 // on-device config sheet (gear on the phone)
 $('gearBtn').onclick=()=>$('phoneConfig').classList.toggle('open');
 $('pcX').onclick=()=>$('phoneConfig').classList.remove('open');
+$('watchFor').onclick=dismissWatchFor;  // tap to acknowledge — checks, then disappears
+$('watchFor').onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); dismissWatchFor(); } };
 const showInteg=v=>$('integ').classList.toggle('open',v);
 $('integBtn').onclick=()=>showInteg(true);
 $('integX').onclick=()=>showInteg(false);
