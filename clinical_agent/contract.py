@@ -206,6 +206,18 @@ class ScreenerSuggested(_Payload):
     signal: str                # the vocal signal that triggered it, e.g. "anxiety"
 
 
+class LiteratureRef(_Payload):
+    """A PubMed reference the agent cited to support a finding. Only produced at explanation
+    depth = 'detailed'. Not a gateable clinical output — it rides the detailed-depth setting."""
+    patient: str
+    pmid: str
+    title: str
+    journal: Optional[str] = None
+    year: Optional[str] = None
+    url: Optional[str] = None
+    query: Optional[str] = None
+
+
 class TrialMatch(_Payload):
     patient: str
     nct_id: str
@@ -246,6 +258,7 @@ REGISTRY: dict[str, tuple[type[_Payload], PHASE]] = {
     "topics": (Topics, "post_visit"),
     "visit_note": (VisitNote, "post_visit"),
     "screener_suggested": (ScreenerSuggested, "post_visit"),
+    "literature_ref": (LiteratureRef, "post_visit"),
     "trial_match": (TrialMatch, "post_visit"),
     "longitudinal_delta": (LongitudinalDelta, "longitudinal"),
     "longitudinal_narrative": (LongitudinalNarrative, "longitudinal"),
@@ -267,6 +280,7 @@ LABELS: dict[str, tuple[str, str]] = {
     "screener_suggested":     ("Suggested screening",       "Validated screeners (e.g. PHQ-9, GAD-7) for flagged conditions, offered as orders to administer."),
     "chart_draft":            ("Chart update drafts",       "Proposed chart updates for the clinician to review and approve."),
     "topics":                 ("Next-visit topics",         "Things to raise at the next appointment."),
+    "literature_ref":         ("Supporting literature",     "PubMed references the agent cited to support a finding (only at 'detailed' explanation depth)."),
     "trial_match":            ("Clinical trial matches",    "Recruiting trials relevant to a voice-flagged issue that wasn't the focus this visit."),
     "longitudinal_delta":     ("Early-detection timeline",  "Per condition: when the voice first flagged it vs. when it was first coded."),
     "longitudinal_narrative": ("Early-detection summary",   "A short plain-language summary of the voice-vs-chart early-detection story."),
