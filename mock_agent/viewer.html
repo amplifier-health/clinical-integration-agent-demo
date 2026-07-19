@@ -316,7 +316,6 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
           <div class="pt-row">
             <div class="avatar" id="mAv">·</div>
             <div><div class="nm" id="mName">—</div><div class="mrn" id="mMrn">MRN —</div></div>
-            <div class="timer" id="mTimer">0:00</div>
           </div>
           <div class="watchfor" id="watchFor" hidden role="button" tabindex="0" aria-label="Acknowledge watch-for">
             <div class="wf-top"><div class="wf-hd">◆ Watch for · from prior visits</div>
@@ -457,7 +456,6 @@ function resetToHome(){  // selecting a different visit returns the phone to its
   if(es){ try{es.close();}catch(_){} es=null; }
   fetch(BASE+'/patients/'+PID+'/visits/stop',{method:'POST'}).catch(()=>{});  // stop the old backend job
   clearInterval(timer); stopAudio(); streaming=false; sigShown.clear(); tokAgent=null; tokBuf=null;
-  secs=0; $('mTimer').textContent='0:00';
   $('sugList').innerHTML='';   // home state: no "Listening…" until Start is pressed
   $('watchFor').hidden=true; $('wfItems').replaceChildren();
   $('rlog').innerHTML=''; $('phoneConfig').classList.remove('open'); $('opener').classList.remove('pinging');
@@ -609,9 +607,6 @@ function addFollow(d){
   el.innerHTML=`<span class="mk">${d.discussed?'✓':'!'}</span><div style="flex:1"><div class="txt">${d.text}</div><div class="why">${d.why||''}</div></div>${d.discussed?'':'<span class="tagg">CARE GAP</span>'}`;
   $('planMount').appendChild(el);
 }
-function tickTimer(){ // phone clock advances in visit-time (× SPEED), tracking the reasoning progress
-  secs+=Math.max(1,Math.round(Number($('speed').value)||1));
-  const m=Math.floor(secs/60),s=secs%60;$('mTimer').textContent=`${m}:${s<10?'0':''}${s}`;}
 
 /* ---- backend-event adapters (map the backend contract onto the UI panels) ---- */
 function addToken(d){ // streamed Claude output → grouped block in the reasoning tab
@@ -679,7 +674,6 @@ function play(){
   $('rlog').innerHTML='';seedNote();seedPriorContext();  // keep pre-visit context as the starting note
   _orders=0; const _ob=$('ordersBody'); if(_ob){_ob.innerHTML='<p id="ordersEmpty" style="color:var(--muted)">No orders yet. Suggested screening appears here when enabled.</p>';} const _oc=$('ordersCount'); if(_oc){_oc.textContent='0';_oc.hidden=true;}
   $('watchFor').hidden=true;$('wfItems').replaceChildren();  // clear last visit's watch-for
-  secs=0;$('mTimer').textContent='0:00';clearInterval(timer);timer=setInterval(tickTimer,1000);
   startVisitAudio();  // play the real recording (sped up) so the demo can hear the visit
   setRecUI('recording');
   let ended=false;  // so a normal stream close doesn't look like a connection error
