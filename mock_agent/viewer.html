@@ -454,6 +454,16 @@ function setRecUI(state){ // 'recording' | 'done'
   if(!rec)$('opener').classList.remove('pinging');
 }
 function stopVisit(){ if(es)es.close(); clearInterval(timer); stopAudio(); setRecUI('done'); }
+function resetToHome(){  // selecting a different visit returns the phone to its pre-record home state
+  if(es){ try{es.close();}catch(_){} es=null; }
+  clearInterval(timer); stopAudio(); streaming=false; sigShown.clear(); tokAgent=null;
+  secs=0; $('mTimer').textContent='0:00';
+  $('sugList').innerHTML='<div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div><div class="s">Voice signals surface here as they emerge</div></div></div>';
+  $('watchFor').hidden=true; $('wfItems').replaceChildren();
+  $('rlog').innerHTML=''; $('phoneConfig').classList.remove('open'); $('opener').classList.remove('pinging');
+  setRecUI('idle');
+  seedNote(); seedPriorContext();   // reseed the note's pre-visit context for the chosen visit
+}
 
 let CHART_VISITS=[], ALL_VISITS=[];
 async function loadChart(){
@@ -523,7 +533,7 @@ fetch(BASE+'/patients/'+PID+'/visits')
       o.textContent=`${v.date||'—'} · ${v.reason||('visit '+v.number)}${codes?' ('+codes+')':''}${planned?' — today':''}`;
       sel.appendChild(o);
     });
-    sel.onchange=seedPriorContext;   // re-seed the note's pre-visit context for the chosen visit
+    sel.onchange=resetToHome;   // new visit → reset the phone to home + reseed the note
     seedPriorContext();
   })
   .catch(e=>{ console.warn('could not load visits for '+PID+' at '+(BASE||location.origin)+':',e.message);
