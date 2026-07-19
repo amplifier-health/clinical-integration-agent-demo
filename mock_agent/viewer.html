@@ -686,7 +686,7 @@ function renderContract(c){
   const out=$('ioOut'); out.innerHTML='';
   [...clin].sort((a,b)=>((ev[a]||{}).phase||'').localeCompare((ev[b]||{}).phase||'')||a.localeCompare(b))
     .forEach(t=>{ const row=document.createElement('div'); row.className='io-row';
-      const b=document.createElement('b'); b.textContent=t;
+      const b=document.createElement('b'); b.textContent=(ev[t]||{}).label||t; b.title=t;
       const ph=document.createElement('span'); ph.className='ph-badge'; ph.textContent=(ev[t]||{}).phase||'';
       row.append(b,ph); out.appendChild(row); });
   // Config: each clinical output as an enable toggle (all on = full contract).
@@ -694,8 +694,9 @@ function renderContract(c){
   [...clin].sort().forEach(t=>{ const el=document.createElement('div'); el.className='uc on'; el.dataset.type=t;
     const sw=document.createElement('span'); sw.className='sw';
     const nm=document.createElement('span'); nm.className='ucn';
-    nm.innerHTML=''; nm.append(document.createTextNode(PRETTY(t)));
-    const sub=document.createElement('small'); sub.textContent=(ev[t]||{}).phase||''; nm.append(sub);
+    nm.innerHTML=''; nm.append(document.createTextNode((ev[t]||{}).label||PRETTY(t)));
+    const sub=document.createElement('small'); sub.textContent=(ev[t]||{}).description||(ev[t]||{}).phase||''; nm.append(sub);
+    el.title=(ev[t]||{}).description||'';
     el.append(sw,nm);
     el.onclick=()=>{ el.classList.toggle('on');  // toggles gate what surfaces (pre_visit_brief → watch-for card)
       if(t==='pre_visit_brief' && !el.classList.contains('on')) $('watchFor').hidden=true; };
