@@ -89,7 +89,8 @@ Key clinical event types (full schema in `docs/contract/contract.json`):
 | `GET /patients` | List patients |
 | `GET /patients/{id}/chart` | Patient chart (visits, codes, prior signals, notes) |
 | `GET /patients/{id}/visits` | Visit list (for an appointment picker) |
-| `POST /patients/{id}/visits/start` | Start a visit. Body `{visit?, audio_path?}` — omit `audio_path` to replay the appointment from precomputed results |
+| `POST /patients/{id}/visits/start` | Start a visit. Body `{visit?, audio_path?, config?}` — omit `audio_path` to replay the appointment from precomputed results |
+| `WS /patients/{id}/visits/stream` | **Real ingestion boundary** — the scribe streams PCM frames + `visit.start`/`visit.end`; we bucket into the 30s/15s pipeline. (The demo mocks this with replay.) |
 | `GET /events` | SSE stream of typed events |
 | `GET /patients/{id}/visits/{n}/result` | Folded snapshot of a completed visit |
 | `POST /patients/{id}/longitudinal` | Run the cross-visit early-detection analysis |

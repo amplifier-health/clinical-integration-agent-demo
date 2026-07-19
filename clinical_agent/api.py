@@ -2,7 +2,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -112,6 +112,25 @@ def create_app(settings: Settings, store: PatientStore, bus: EventBus,
 
         app.state.jobs.append(asyncio.create_task(job()))
         return {"status": "started"}
+
+    @app.websocket("/patients/{pid}/visits/stream")
+    async def visit_stream(ws: WebSocket, pid: str, visit: int | None = None):
+        """REAL ingestion boundary: the ambient scribe streams raw PCM frames here and we bucket
+        them into the 30s/15s pipeline. Results come back on GET /events (same typed contract).
+        The demo doesn't use this — it replays precomputed results — but this is the production wire."""
+        from clinical_agent.clinician_config import ClinicianConfig
+        from clinical_agent.session import run_streaming_visit
+        await ws.accept()
+        try:
+            await run_streaming_visit(settings, bus, store, transcriber, amplifier, pid, ws,
+                                      visit_number=visit, config=ClinicianConfig())
+        except Exception as exc:
+            await bus.emit("error", patient=pid, message=str(exc))
+        finally:
+            try:
+                await ws.close()
+            except Exception:
+                pass
 
     @app.post("/patients/{pid}/longitudinal")
     async def longitudinal(pid: str):

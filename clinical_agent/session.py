@@ -222,6 +222,96 @@ async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
     return summary
 
 
+async def run_streaming_visit(settings: Settings, bus: EventBus, store: PatientStore,
+                              transcriber: Transcriber, amplifier: AmplifierClient, pid: str, ws,
+                              visit_number: int | None = None,
+                              config: ClinicianConfig | None = None) -> dict:
+    """The REAL ingestion path: the scribe streams PCM frames over a WebSocket; we bucket them
+    into 30s/15s windows and run the exact same pipeline as a file visit. (The demo mocks this
+    with replay_visit — this is the production transport.)"""
+    from fastapi import WebSocketDisconnect
+
+    from clinical_agent.streaming import AudioBucketer
+
+    visits = store.list_visits(pid)
+    current = (next((v for v in visits if v.number == visit_number), None) if visit_number is not None
+               else next((v for v in visits if v.status == "planned"), None))
+    if current is None:
+        raise ValueError(f"no visit {visit_number or '(planned)'} for patient {pid}")
+
+    start_session(patient_id=pid, visit=current.number)
+    set_config(config or ClinicianConfig())
+    await bus.emit("visit_started", patient=pid, visit=current.number, date=current.date,
+                   reason=current.reason)
+    brief = await roles.pre_visit_brief(settings, bus, store, pid, before=current.number)
+    visit_history: list = [{"role": "user", "content":
+        f"VISIT START for patient {pid}. Chart (prior appointments only):\n"
+        f"{json.dumps(store.chart(pid, before=current.number))}\n"
+        f"Pre-visit brief:\n{json.dumps(brief)}\n"
+        "Live voice-biomarker ticks and transcript follow as the scribe streams audio."}]
+
+    bucketer = AudioBucketer()
+    transcripts: dict = {}
+    signals_by_chunk: dict = {}
+    observations: list = []
+
+    async def process(chunk):
+        try:
+            text = await transcriber.transcribe(chunk.wav_bytes)
+            await bus.emit("transcript", patient=pid, chunk=chunk.index, text=text)
+            result = await amplifier.analyze(chunk)
+            transcripts[chunk.index] = text
+            signals_by_chunk[chunk.index] = result.get("signals", [])
+            await bus.emit("chunk_created", patient=pid, chunk=chunk.index,
+                           start_s=chunk.start_s, end_s=chunk.end_s)
+            cumulative = [s for n in sorted(signals_by_chunk) for s in signals_by_chunk[n]]
+            obs = await roles.reason_over_chunk(settings, bus, store, pid, chunk.index, text,
+                                                cumulative, brief, history=visit_history)
+            observations.append(obs)
+        except Exception as exc:  # a bad window must not kill the stream
+            await bus.emit("error", patient=pid, chunk=chunk.index, message=str(exc))
+
+    while True:  # scribe → us: {"type":"visit.start", sample_rate?} · binary PCM frames · {"type":"visit.end"}
+        try:
+            msg = await ws.receive()
+        except WebSocketDisconnect:
+            break
+        if msg.get("type") == "websocket.disconnect":
+            break
+        if msg.get("bytes") is not None:
+            bucketer.feed(msg["bytes"])
+            for chunk in bucketer.pop_ready():
+                await process(chunk)
+        elif msg.get("text") is not None:
+            ctrl = json.loads(msg["text"])
+            if ctrl.get("type") == "visit.start" and ctrl.get("sample_rate"):
+                bucketer = AudioBucketer(sample_rate=int(ctrl["sample_rate"]))
+            elif ctrl.get("type") == "visit.end":
+                break
+
+    tail = bucketer.flush()
+    if tail is not None:
+        await process(tail)
+
+    ordered = sorted(signals_by_chunk)
+    all_signals = [s for n in ordered for s in signals_by_chunk[n]]
+    store.write_artifact(pid, current.number, "signals",
+                         signals_by_chunk[ordered[-1]] if ordered else [])
+    store.write_artifact(pid, current.number, "transcript",
+                         [{"chunk": n, "text": transcripts[n]} for n in ordered])
+    store.write_artifact(pid, current.number, "observations", observations)
+    summary = await roles.post_visit_summary(settings, bus, store, pid, current.number,
+                                             [transcripts[n] for n in ordered], all_signals,
+                                             observations, brief, history=visit_history)
+    await roles.build_visit_note(settings, bus, store, pid, current.number,
+                                 [transcripts[n] for n in ordered], current.icd10, all_signals,
+                                 history=visit_history)
+    current.status = "complete"
+    store.save_visits(pid, visits)
+    await bus.emit("visit_complete", patient=pid, visit=current.number)
+    return summary
+
+
 async def run_longitudinal(settings: Settings, bus: EventBus, store: PatientStore, pid: str) -> dict:
     start_session(patient_id=pid)  # scope the longitudinal events to a session too
     return await roles.longitudinal_analysis(settings, bus, store, pid)

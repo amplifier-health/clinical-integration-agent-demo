@@ -375,7 +375,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
           <div class="io-row"><b>audio/pcm</b> streamed frames (16&nbsp;kHz mono)</div>
           <div class="io-row"><b>visit.start</b> patient id, encounter id</div>
           <div class="io-row"><b>visit.end</b> stop signal</div>
-          <div class="io-note">That's the whole surface the scribe implements. No model calls, no chunking, no state on their side.</div>
+          <div class="io-note">One WebSocket — <code>WS /visits/stream</code>. That's the whole surface the scribe implements: forward frames + two lifecycle signals. No model calls, no chunking, no state on their side. <em>(This demo replays precomputed results instead of streaming live audio.)</em></div>
         </div>
         <div class="io-mid">→</div>
         <div class="io-col">
