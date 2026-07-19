@@ -90,3 +90,12 @@ def test_committed_schema_is_current():
     assert committed.exists(), "run: python scripts/dump_contract.py"
     assert json.loads(committed.read_text()) == d.build(), \
         "contract drifted from models — run scripts/dump_contract.py and commit"
+
+
+def test_literature_ref_is_depth_gated_not_toggleable():
+    # literature_ref is registered (validates) but NOT a clinical type — it has no gear toggle
+    # and isn't suppressed by enabled_outputs; it rides the 'detailed' depth setting only.
+    assert "literature_ref" in contract.REGISTRY
+    assert "literature_ref" not in contract.CLINICAL_TYPES
+    out = contract.validate("literature_ref", {"patient": "p", "pmid": "123", "title": "t"})
+    assert out["pmid"] == "123"

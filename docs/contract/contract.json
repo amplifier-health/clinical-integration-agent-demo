@@ -444,6 +444,85 @@
         "type": "object"
       }
     },
+    "literature_ref": {
+      "clinical": false,
+      "description": "PubMed references the agent cited to support a finding (only at 'detailed' explanation depth).",
+      "label": "Supporting literature",
+      "phase": "post_visit",
+      "schema": {
+        "additionalProperties": false,
+        "description": "A PubMed reference the agent cited to support a finding. Only produced at explanation\ndepth = 'detailed'. Not a gateable clinical output \u2014 it rides the detailed-depth setting.",
+        "properties": {
+          "journal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Journal"
+          },
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "pmid": {
+            "title": "Pmid",
+            "type": "string"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Query"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Year"
+          }
+        },
+        "required": [
+          "patient",
+          "pmid",
+          "title"
+        ],
+        "title": "LiteratureRef",
+        "type": "object"
+      }
+    },
     "longitudinal_delta": {
       "clinical": true,
       "description": "Per condition: when the voice first flagged it vs. when it was first coded.",

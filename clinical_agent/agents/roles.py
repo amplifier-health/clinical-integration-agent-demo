@@ -222,6 +222,47 @@ _SIGNAL_SCREENERS = {
 }
 
 
+def _pubmed_tool(bus: EventBus, pid: str):
+    """A tool that searches PubMed (NCBI E-utilities) and emits a `literature_ref` per article.
+    Used only at 'detailed' explanation depth, to let the agent cite supporting evidence."""
+    async def _search(inp: dict) -> str:
+        query = inp.get("query", "")
+        n = int(inp.get("max_results", 3))
+        base = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+        try:
+            async with httpx.AsyncClient(timeout=30) as h:
+                ids = (await h.get(f"{base}/esearch.fcgi", params={
+                    "db": "pubmed", "term": query, "retmax": n, "retmode": "json",
+                    "sort": "relevance"})).raise_for_status().json()
+                idlist = ids.get("esearchresult", {}).get("idlist", [])
+                if not idlist:
+                    return "no PubMed results"
+                summ = (await h.get(f"{base}/esummary.fcgi", params={
+                    "db": "pubmed", "id": ",".join(idlist), "retmode": "json"})).raise_for_status().json()
+        except Exception as exc:
+            return f"PubMed search failed: {exc}"
+        result, found = summ.get("result", {}), []
+        for pmid in result.get("uids", []):
+            a = result.get(pmid, {})
+            title = a.get("title", "(untitled)")
+            journal = a.get("fulljournalname") or a.get("source")
+            year = (a.get("pubdate") or "")[:4]
+            await bus.emit("literature_ref", patient=pid, pmid=pmid, title=title,
+                           journal=journal, year=year, query=query,
+                           url=f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/")
+            found.append(f"{pmid}: {title}")
+        return "found: " + " | ".join(found) if found else "no PubMed results"
+
+    return {"search_pubmed": ({
+        "name": "search_pubmed",
+        "description": "Search PubMed for peer-reviewed literature supporting a clinical finding "
+                       "(e.g. a vocal-biomarker association). Emits a literature_ref per article.",
+        "input_schema": {"type": "object", "additionalProperties": False,
+                         "properties": {"query": {"type": "string"},
+                                        "max_results": {"type": "integer"}},
+                         "required": ["query"]}}, _search)}
+
+
 def _clinical_trials_tool(bus: EventBus, pid: str):
     """A tool that searches ClinicalTrials.gov and emits a `trial_match` per result."""
     async def _search(inp: dict) -> str:
@@ -312,6 +353,19 @@ async def post_visit_summary(settings: Settings, bus: EventBus, store: PatientSt
                 "surface relevant trials the clinician might consider. Search the single most "
                 "important undiscussed condition.",
                 tools=_clinical_trials_tool(bus, pid), effort="low", history=history)
+
+    # Supporting literature — ONLY at 'detailed' explanation depth (needs live Claude to call the
+    # tool). Cites PubMed evidence for the visit's main vocal finding.
+    if current_config().explainability == "detailed" and not settings.mock_claude:
+        finding = (summary.get("vocal_findings") or [{}])[0].get("sign") or summary.get("discordance", "")
+        if finding:
+            lit = ClaudeAgent("literature", settings, bus)
+            await lit.run(
+                POSTVISIT_SYSTEM,
+                f"Call search_pubmed to find peer-reviewed evidence relating the vocal-biomarker "
+                f"finding \"{finding}\" to its condition (e.g. voice biomarkers and that condition). "
+                "Cite the most relevant results.",
+                tools=_pubmed_tool(bus, pid), effort="low", history=history)
     return summary
 
 

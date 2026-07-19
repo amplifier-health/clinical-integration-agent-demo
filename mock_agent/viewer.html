@@ -492,7 +492,9 @@ function seedNote(){
    <div id="asmtMount"></div>
    <div class="plan" id="planMount"></div>
    <h2 id="trialsHd" style="display:none">Surfaced Clinical Trials</h2>
-   <div id="trialsMount"></div>`;
+   <div id="trialsMount"></div>
+   <h2 id="litHd" style="display:none">Supporting Literature</h2>
+   <div id="litMount"></div>`;
 }
 function _selectedNum(){ const v=$('visitPick')&&$('visitPick').value;
   if(v) return +v;                                   // a specific historical visit
@@ -657,6 +659,15 @@ function addScreenerOrder(d){  // suggested screener → the Orders tab, with an
   el.appendChild(act); $('ordersBody').appendChild(el);
   _orders++; const b=$('ordersCount'); b.textContent=_orders; b.hidden=false;
 }
+function addLiteratureToNote(d){  // PubMed citation → "Supporting Literature" in the Note (detailed depth only)
+  $('litHd').style.display='block';
+  const el=document.createElement('div'); el.className='addendum';
+  const t=d.url?`<a href="${d.url}" target="_blank" rel="noopener">${d.title||d.pmid}</a>`:(d.title||d.pmid||'');
+  el.innerHTML=`<div class="tag">${sparkSvg} PubMed · evidence</div>`
+    +`<div>${t}</div>`
+    +`<div class="fu-why" style="margin-top:2px;color:var(--muted)">${[d.journal,d.year].filter(Boolean).join(' · ')} · PMID ${d.pmid||''}</div>`;
+  $('litMount').appendChild(el);
+}
 function addTrialToNote(d){  // renders inside the Note (not a side panel), under "Surfaced Clinical Trials"
   $('trialsHd').style.display='block';
   const el=document.createElement('div'); el.className='addendum';
@@ -701,6 +712,7 @@ function play(){
   on('chart_draft',addChartDraft);
   on('topics',addNextTopics);
   on('trial_match',addTrialToNote);  // renders under "Surfaced Clinical Trials" in the Note (opt-in)
+  on('literature_ref',addLiteratureToNote);  // PubMed evidence → "Supporting Literature" (detailed depth only)
   on('screener_suggested',addScreenerOrder);  // renders in the Orders tab (opt-in)
   on('longitudinal_narrative',d=>addStep({phase:'post',message:d.text||''}));
   on('error',d=>addStep({phase:'gap',message:'error: '+(d.message||'')}));
