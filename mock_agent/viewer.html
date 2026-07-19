@@ -364,30 +364,26 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 <div class="integ" id="integ">
   <div class="integ-card">
     <div class="integ-hd">
-      <div><div class="ititle">Ambient scribe integration <span class="ver-pill" id="verPill">contract v—</span></div>
-        <div class="isub">Voice-biomarker-based enhancement of conversational understanding — the how beneath the what, returned as typed objects to surface as a pre-visit brief, live in the visit, or embedded in the clinical note.</div></div>
+      <div><div class="ititle">Undertone <span class="ver-pill" id="verPill">contract v—</span></div>
+        <div class="isub">Voice-biomarker-based enhancement of conversational understanding — the <em>how</em> beneath the <em>what</em>, returned as typed objects to surface as a pre-visit brief, live in the visit, or embedded in the clinical note.</div></div>
       <button class="x" id="integX">✕</button>
     </div>
     <div class="integ-body">
       <div class="io">
         <div class="io-col">
           <div class="io-tag scribe">Scribe&nbsp;→&nbsp;us</div>
-          <div class="io-row"><b>audio/pcm</b> streamed frames (16&nbsp;kHz mono)</div>
-          <div class="io-row"><b>visit.start</b> patient id, encounter id</div>
-          <div class="io-row"><b>visit.end</b> stop signal</div>
-          <div class="io-note">One WebSocket — <code>WS /visits/stream</code>. That's the whole surface the scribe implements: forward frames + two lifecycle signals. No model calls, no chunking, no state on their side. <em>(This demo replays precomputed results instead of streaming live audio.)</em></div>
+          <div class="io-row"><b>audio</b> streamed frames</div>
+          <div class="io-row"><b>visit.start / visit.end</b></div>
         </div>
         <div class="io-mid">→</div>
         <div class="io-col">
-          <div class="io-tag ours">Us&nbsp;→&nbsp;scribe · typed SSE events</div>
+          <div class="io-tag ours">Us&nbsp;→&nbsp;scribe · typed events</div>
           <div class="io-out" id="ioOut"><div class="io-row">loading contract…</div></div>
-          <div class="io-note">Every frame carries the envelope <code>type · contract_version · phase · session_id · seq · ts</code>.
-            A folded snapshot is also available at <code>GET /patients/{id}/visits/{n}/result</code>.</div>
         </div>
       </div>
 
       <div class="cadence">
-        <div class="chd">Streaming cadence · we own the buffering</div>
+        <div class="chd">We own the buffering — a new reading every 15 seconds</div>
         <div class="ctrack">
           <span class="cw" style="left:0%;width:30%">30s bucket</span>
           <span class="cw" style="left:15%;width:30%">30s bucket</span>
@@ -396,11 +392,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
           <span class="ctick" style="left:15%"></span><span class="ctick" style="left:30%"></span>
           <span class="ctick" style="left:45%"></span><span class="ctick" style="left:60%"></span>
         </div>
-        <div class="cnote">Incoming audio fills a rolling <b>30-second</b> bucket; every <b>15&nbsp;seconds</b> we
-          <code>POST /v2/models/&lt;model&gt;/analyze</code> and stream the result back. Overlap keeps signals stable across window edges.</div>
       </div>
-
-      <div class="cnote" style="text-align:center">Configuration (enabled outputs &amp; explanation depth) lives on the device — tap the ⚙ on the phone.</div>
     </div>
     <div class="integ-foot"><button class="btn play" id="integGo">Enter the demo →</button></div>
   </div>
@@ -766,8 +758,7 @@ function renderContract(c){
   [...clin].sort((a,b)=>((ev[a]||{}).phase||'').localeCompare((ev[b]||{}).phase||'')||a.localeCompare(b))
     .forEach(t=>{ const row=document.createElement('div'); row.className='io-row';
       const b=document.createElement('b'); b.textContent=(ev[t]||{}).label||t; b.title=t;
-      const ph=document.createElement('span'); ph.className='ph-badge'; ph.textContent=(ev[t]||{}).phase||'';
-      row.append(b,ph); out.appendChild(row); });
+      row.append(b); out.appendChild(row); });
   // Config: each clinical output as an enable toggle (all on = full contract).
   const g=$('cfgGrid'); g.innerHTML='';
   // trials + screeners default OFF (opt-in); all else on
