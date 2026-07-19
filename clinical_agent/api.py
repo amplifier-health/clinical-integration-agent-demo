@@ -2,9 +2,9 @@ import asyncio
 import json
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from clinical_agent import contract
@@ -44,6 +44,16 @@ def create_app(settings: Settings, store: PatientStore, bus: EventBus,
     @app.get("/patients/{pid}/visits")
     def visits(pid: str):
         return [v.model_dump() for v in store.list_visits(pid)]
+
+    @app.get("/patients/{pid}/visits/{visit}/audio")
+    def visit_audio(pid: str, visit: int):
+        """Serve a visit's recorded audio so the UI can play it back (sped up) during the demo.
+        Local demo data only — 404 if this visit has no audio on file (e.g. the planned visit)."""
+        audio = store.read_artifact(pid, visit, "audio") or {}
+        path = audio.get("postdiarized_patient") or next(iter(audio.values()), None)
+        if not path or not Path(path).exists():
+            raise HTTPException(status_code=404, detail="no audio on file for this visit")
+        return FileResponse(path, media_type="audio/wav")
 
     @app.get("/contract")
     def contract_doc():

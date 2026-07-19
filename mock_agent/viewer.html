@@ -302,7 +302,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
     <div class="rec-state" id="recState"><span class="rec-dot"></span><span id="recLabel">Ready</span></div>
     <div class="spacer"></div>
     <div class="speed">visit <select id="visitPick" style="padding:5px 7px;border:1px solid var(--line);border-radius:8px;font-family:inherit;background:var(--surface);color:var(--ink);max-width:200px"><option value="">planned (today)</option></select></div>
-    <div class="speed">speed <input id="speed" type="number" value="20" min="1" max="80"></div>
+    <div class="speed">speed <input id="speed" type="number" value="16" min="1" max="80"></div>
     <button class="btn ghost" id="integBtn">◧ Integration &amp; config</button>
   </div>
 
@@ -414,8 +414,20 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
   <div class="reason-foot" id="rfoot">One persistent Claude agent · low-effort live triage · high-effort post-visit analysis</div>
 </div>
 
+<audio id="visitAudio" preload="auto" style="display:none"></audio>
 <script>
 const $=id=>document.getElementById(id);
+const AUDIO_MAX_RATE=16;  // browsers cap playbackRate around 16x
+function stopAudio(){ const a=$('visitAudio'); try{a.pause();}catch(_){} }
+function startVisitAudio(){  // play the real recording, sped up, so the demo can hear the visit
+  const a=$('visitAudio'), vn=$('visitPick')&&$('visitPick').value;
+  stopAudio(); a.removeAttribute('src');
+  if(!vn) return;  // planned/today has no recording
+  a.src=BASE+'/patients/'+PID+'/visits/'+vn+'/audio';
+  a.playbackRate=Math.min(AUDIO_MAX_RATE, Number($('speed').value)||AUDIO_MAX_RATE);
+  a.onerror=()=>{};  // no audio for this visit → silently fall back to the tick timer
+  a.play().catch(()=>{});
+}
 const SEED_HPI = c => `${c.name} is a ${c.age}-year-old ${c.sex==='F'?'woman':c.sex==='M'?'man':'patient'} with a history of ${(c.problems||[]).join(', ').toLowerCase()||'—'}, on ${(c.meds||[]).join(', ')||'no daily medications'}, presenting for ${(c.chief_complaint||'follow-up').toLowerCase().replace(/\\.$/,'')}. The encounter is being recorded and ambiently analyzed; voice-biomarker signals are surfaced as considerations, not diagnoses.`;
 let es, chart=null, timer=null, secs=0, streaming=false, tokAgent=null, tokBuf=null;
 // Backend base URL: default same-origin (works when served by the backend on :8000 or the
@@ -438,7 +450,7 @@ function setRecUI(state){ // 'recording' | 'done'
   $('recLabel').textContent=rec?'Recording · analyzing':(state==='done'?'Visit complete':'Ready');
   if(!rec)$('opener').classList.remove('pinging');
 }
-function stopVisit(){ if(es)es.close(); clearInterval(timer); setRecUI('done'); }
+function stopVisit(){ if(es)es.close(); clearInterval(timer); stopAudio(); setRecUI('done'); }
 
 let CHART_VISITS=[], ALL_VISITS=[];
 async function loadChart(){
@@ -583,8 +595,10 @@ function addFollow(d){
   el.innerHTML=`<span class="mk">${d.discussed?'✓':'!'}</span><div style="flex:1"><div class="txt">${d.text}</div><div class="why">${d.why||''}</div></div>${d.discussed?'':'<span class="tagg">CARE GAP</span>'}`;
   $('planMount').appendChild(el);
 }
-function tickTimer(){ // advance in visit-time: each real second = SPEED seconds of the encounter
-  secs+=Math.max(1,Math.round(Number($('speed').value)||1));
+function tickTimer(){ // when the recording is playing, mirror its position so the phone clock
+  const a=$('visitAudio');  // exactly tracks the real appointment length; else advance by SPEED
+  if(a && a.src && !a.paused && a.currentTime>0) secs=Math.floor(a.currentTime);
+  else secs+=Math.max(1,Math.round(Number($('speed').value)||1));
   const m=Math.floor(secs/60),s=secs%60;$('mTimer').textContent=`${m}:${s<10?'0':''}${s}`;}
 
 /* ---- backend-event adapters (map the backend contract onto the UI panels) ---- */
@@ -642,6 +656,7 @@ function play(){
   $('rlog').innerHTML='';seedNote();seedPriorContext();  // keep pre-visit context as the starting note
   $('watchFor').hidden=true;$('wfItems').replaceChildren();  // clear last visit's watch-for
   secs=0;$('mTimer').textContent='0:00';clearInterval(timer);timer=setInterval(tickTimer,1000);
+  startVisitAudio();  // play the real recording (sped up) so the demo can hear the visit
   setRecUI('recording');
   let ended=false;  // so a normal stream close doesn't look like a connection error
   const on=(t,f)=>es.addEventListener(t,e=>{try{f(JSON.parse(e.data))}catch(_){}});
@@ -670,8 +685,8 @@ function play(){
   on('trial_match',addTrialToNote);  // renders under "Surfaced Clinical Trials" in the Note (opt-in)
   on('longitudinal_narrative',d=>addStep({phase:'post',message:d.text||''}));
   on('error',d=>addStep({phase:'gap',message:'error: '+(d.message||'')}));
-  on('visit_complete',()=>{ ended=true; clearInterval(timer); setRecUI('done'); if(es)es.close(); });
-  on('end',()=>{ ended=true; clearInterval(timer); setRecUI('done'); if(es)es.close(); });  // mock server terminator
+  on('visit_complete',()=>{ ended=true; clearInterval(timer); stopAudio(); setRecUI('done'); if(es)es.close(); });
+  on('end',()=>{ ended=true; clearInterval(timer); stopAudio(); setRecUI('done'); if(es)es.close(); });  // mock server terminator
   // trigger the backend visit (stream-first). No-op for the offline mock server, which replays on connect.
   const depth=($('depthSeg').querySelector('button.on')||{}).dataset?.d||'standard';
   const ucs=[...document.querySelectorAll('#cfgGrid .uc')];
