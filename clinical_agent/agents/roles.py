@@ -63,6 +63,18 @@ VISITNOTE_SYSTEM = (
     + _QUALITATIVE + _NEVER_DIAGNOSE
 )
 
+TRIALS_SYSTEM = (
+    "You are a clinical-trials relevance agent. You have the patient's full chart and this visit's "
+    "vocal-biomarker findings in memory. Your job is STRICT relevance: surface only trials that "
+    "genuinely fit THIS patient. Workflow: call search_clinical_trials for the condition, read the "
+    "returned candidates, and call surface_trial ONLY for those that clearly match the patient's "
+    "specific condition AND their demographics/eligibility (sex, age) AND are consistent with their "
+    "history and comorbidities. Reject anything whose condition, population, or eligibility does not "
+    "clearly apply. Surface at most 2, and prefer surfacing NONE over a marginal match. Every "
+    "surface_trial.why_relevant must name the patient's specific history/finding and why they meet "
+    "the trial's eligibility — no generic 'matched on condition'. " + _NEVER_DIAGNOSE
+)
+
 LONGITUDINAL_SYSTEM = (
     "You are a longitudinal analyst. Compare, per condition, when vocal biomarkers first flagged a "
     "signal versus when the condition (or a related ICD-10 code) first appeared in the chart. "
@@ -263,47 +275,61 @@ def _pubmed_tool(bus: EventBus, pid: str):
                          "required": ["query"]}}, _search)}
 
 
-def _clinical_trials_tool(bus: EventBus, pid: str):
-    """A tool that searches ClinicalTrials.gov and emits a `trial_match` per result."""
+def _clinical_trials_tools(bus: EventBus, pid: str):
+    """Two tools: search_clinical_trials RETURNS recruiting candidates (does NOT surface them),
+    and surface_trial emits a `trial_match` — so the agent judges relevance before anything shows.
+    Nothing reaches the clinician unless the agent explicitly surfaces it with a rationale."""
     async def _search(inp: dict) -> str:
         condition = inp.get("condition", "")
-        n = int(inp.get("max_results", 3))
-
-        async def _q(recruiting_only: bool):
-            # NB: no `fields` filter — the v2 API rejects display-name fields (400); the full
-            # study object carries protocolSection.identificationModule, which we read below.
-            params = {"query.cond": condition, "pageSize": n}
-            if recruiting_only:
-                params["filter.overallStatus"] = "RECRUITING"
-            url = "https://clinicaltrials.gov/api/v2/studies?" + urllib.parse.urlencode(params)
-            async with httpx.AsyncClient(timeout=30) as h:
-                r = await h.get(url)
-                r.raise_for_status()
-                return r.json()
+        # Recruiting only — no fall-back to any-status (strictness over coverage).
+        params = {"query.cond": condition, "pageSize": 8, "filter.overallStatus": "RECRUITING"}
+        url = "https://clinicaltrials.gov/api/v2/studies?" + urllib.parse.urlencode(params)
         try:
-            data = await _q(True)
-            if not data.get("studies"):
-                data = await _q(False)  # fall back to any status so we still surface matches
+            async with httpx.AsyncClient(timeout=30) as h:
+                data = (await h.get(url)).raise_for_status().json()
         except Exception as exc:
             return f"trial search failed: {exc}"
-        found = []
-        for st in data.get("studies", [])[:n]:
-            idm = st.get("protocolSection", {}).get("identificationModule", {})
-            nct, title = idm.get("nctId", "?"), (idm.get("briefTitle") or "(untitled)")
-            await bus.emit("trial_match", patient=pid, nct_id=nct, title=title,
-                           why_relevant=f"Matched on '{condition}' (the undiscussed gap).",
-                           eligibility_hint=condition)
-            found.append(f"{nct}: {title}")
-        return "found: " + " | ".join(found) if found else "no trials found"
+        cands = []
+        for st in data.get("studies", []):
+            ps = st.get("protocolSection", {})
+            idm, cm = ps.get("identificationModule", {}), ps.get("conditionsModule", {})
+            elig = ps.get("eligibilityModule", {})
+            cands.append({
+                "nct_id": idm.get("nctId", "?"),
+                "title": idm.get("briefTitle") or "(untitled)",
+                "conditions": cm.get("conditions", []),
+                "sex": elig.get("sex"), "min_age": elig.get("minimumAge"), "max_age": elig.get("maximumAge"),
+                "criteria": (elig.get("eligibilityCriteria") or "")[:600],
+            })
+        # Candidates only — the agent must vet each against the patient before surfacing.
+        return json.dumps(cands) if cands else "no recruiting trials found"
 
-    return {"search_clinical_trials": ({
-        "name": "search_clinical_trials",
-        "description": "Search ClinicalTrials.gov for trials relevant to a condition the visit did "
-                       "NOT focus on. Emits a trial_match per result.",
-        "input_schema": {"type": "object", "additionalProperties": False,
-                         "properties": {"condition": {"type": "string"},
-                                        "max_results": {"type": "integer"}},
-                         "required": ["condition"]}}, _search)}
+    async def _surface(inp: dict) -> str:
+        await bus.emit("trial_match", patient=pid, nct_id=inp.get("nct_id", "?"),
+                       title=inp.get("title", ""), why_relevant=inp.get("why_relevant"),
+                       eligibility_hint=inp.get("eligibility_hint"))
+        return "surfaced to the clinician"
+
+    return {
+        "search_clinical_trials": ({
+            "name": "search_clinical_trials",
+            "description": "Search ClinicalTrials.gov for RECRUITING trials for a condition. Returns "
+                           "candidates (title, conditions, sex/age eligibility, criteria) as JSON. "
+                           "Does NOT surface anything — you must vet each and call surface_trial.",
+            "input_schema": {"type": "object", "additionalProperties": False,
+                             "properties": {"condition": {"type": "string"}},
+                             "required": ["condition"]}}, _search),
+        "surface_trial": ({
+            "name": "surface_trial",
+            "description": "Surface ONE vetted trial to the clinician. Call only for a trial that is "
+                           "strictly relevant to THIS patient. why_relevant must cite the patient's "
+                           "specific history/finding and why they fit the eligibility.",
+            "input_schema": {"type": "object", "additionalProperties": False,
+                             "properties": {"nct_id": {"type": "string"}, "title": {"type": "string"},
+                                            "why_relevant": {"type": "string"},
+                                            "eligibility_hint": {"type": "string"}},
+                             "required": ["nct_id", "title", "why_relevant"]}}, _surface),
+    }
 
 
 async def post_visit_summary(settings: Settings, bus: EventBus, store: PatientStore, pid: str,
@@ -348,11 +374,12 @@ async def post_visit_summary(settings: Settings, bus: EventBus, store: PatientSt
         if gap:
             trials = ClaudeAgent("trials", settings, bus)
             await trials.run(
-                POSTVISIT_SYSTEM,
-                f"For the follow-up gap you identified (\"{gap}\"), call search_clinical_trials to "
-                "surface relevant trials the clinician might consider. Search the single most "
-                "important undiscussed condition.",
-                tools=_clinical_trials_tool(bus, pid), effort="low", history=history)
+                TRIALS_SYSTEM,
+                f"The single most important undiscussed gap is: \"{gap}\". Using the patient's chart "
+                "and this visit's findings (in memory), search recruiting trials for that condition, "
+                "then surface only the ones strictly relevant to THIS patient (right condition, sex, "
+                "age, comorbidities). If none clearly fit, surface nothing.",
+                tools=_clinical_trials_tools(bus, pid), effort="low", history=history)
 
     # Supporting literature — ONLY at 'detailed' explanation depth (needs live Claude to call the
     # tool). Cites PubMed evidence for the visit's main vocal finding.
