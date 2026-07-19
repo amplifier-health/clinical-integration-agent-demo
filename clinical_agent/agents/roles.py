@@ -1,3 +1,4 @@
+import asyncio
 import json
 import urllib.parse
 
@@ -367,32 +368,30 @@ async def post_visit_summary(settings: Settings, bus: EventBus, store: PatientSt
                 await bus.emit("screener_suggested", patient=pid, visit=visit_no,
                                instrument=m[0], condition=m[1], signal=s.get("name"))
 
-    # Clinical trials — only when the clinician enabled that output (opt-in; needs live Claude to
-    # call the tool). Searches for the single undiscussed gap; emits a trial_match per result.
-    if current_config().output_enabled("trial_match") and not settings.mock_claude:
-        gap = "; ".join(summary.get("next_visit_topics", [])) or summary.get("discordance", "")
-        if gap:
-            trials = ClaudeAgent("trials", settings, bus)
-            await trials.run(
-                TRIALS_SYSTEM,
-                f"The single most important undiscussed gap is: \"{gap}\". Using the patient's chart "
-                "and this visit's findings (in memory), search recruiting trials for that condition, "
-                "then surface only the ones strictly relevant to THIS patient (right condition, sex, "
-                "age, comorbidities). If none clearly fit, surface nothing.",
-                tools=_clinical_trials_tools(bus, pid), effort="low", history=history)
-
-    # Supporting literature — ONLY at 'detailed' explanation depth (needs live Claude to call the
-    # tool). Cites PubMed evidence for the visit's main vocal finding.
-    if current_config().explainability == "detailed" and not settings.mock_claude:
-        finding = (summary.get("vocal_findings") or [{}])[0].get("sign") or summary.get("discordance", "")
-        if finding:
-            lit = ClaudeAgent("literature", settings, bus)
-            await lit.run(
-                POSTVISIT_SYSTEM,
-                f"Call search_pubmed to find peer-reviewed evidence relating the vocal-biomarker "
-                f"finding \"{finding}\" to its condition (e.g. voice biomarkers and that condition). "
-                "Cite the most relevant results.",
-                tools=_pubmed_tool(bus, pid), effort="low", history=history)
+    # Trials and literature both derive from the summary and read the visit conversation. Run them
+    # in PARALLEL, each on its OWN copy of the (now frozen) history so concurrent turns can't corrupt
+    # a shared list. Both are opt-in and need live Claude to call their tools.
+    cfg = current_config()
+    tasks = []
+    gap = "; ".join(summary.get("next_visit_topics", [])) or summary.get("discordance", "")
+    finding = (summary.get("vocal_findings") or [{}])[0].get("sign") or summary.get("discordance", "")
+    if cfg.output_enabled("trial_match") and not settings.mock_claude and gap:
+        tasks.append(ClaudeAgent("trials", settings, bus).run(
+            TRIALS_SYSTEM,
+            f"The single most important undiscussed gap is: \"{gap}\". Using the patient's chart "
+            "and this visit's findings (in memory), search recruiting trials for that condition, "
+            "then surface only the ones strictly relevant to THIS patient (right condition, sex, "
+            "age, comorbidities). If none clearly fit, surface nothing.",
+            tools=_clinical_trials_tools(bus, pid), effort="low", history=list(history or [])))
+    if cfg.explainability == "detailed" and not settings.mock_claude and finding:
+        tasks.append(ClaudeAgent("literature", settings, bus).run(
+            POSTVISIT_SYSTEM,
+            f"Call search_pubmed to find peer-reviewed evidence relating the vocal-biomarker "
+            f"finding \"{finding}\" to its condition (e.g. voice biomarkers and that condition). "
+            "Cite the most relevant results.",
+            tools=_pubmed_tool(bus, pid), effort="low", history=list(history or [])))
+    if tasks:
+        await asyncio.gather(*tasks)
     return summary
 
 

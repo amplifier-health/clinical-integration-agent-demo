@@ -93,12 +93,13 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
 
     all_signals = [s for n in ordered for s in signals_by_chunk[n]]
     await bus.emit("visit_analyzing", patient=pid, visit=current.number)  # live reasoning done → phone stops recording
-    summary = await roles.post_visit_summary(settings, bus, store, pid, current.number,
-                                             [transcripts[n] for n in sorted(transcripts)],
-                                             all_signals, observations, brief, history=visit_history)
-    await roles.build_visit_note(settings, bus, store, pid, current.number,
-                                 [transcripts[n] for n in sorted(transcripts)],
-                                 current.icd10, all_signals, history=visit_history)
+    # Summary and note are independent — run them in parallel, each on its own history copy.
+    tp = [transcripts[n] for n in sorted(transcripts)]
+    summary, _ = await asyncio.gather(
+        roles.post_visit_summary(settings, bus, store, pid, current.number, tp,
+                                 all_signals, observations, brief, history=list(visit_history)),
+        roles.build_visit_note(settings, bus, store, pid, current.number, tp,
+                               current.icd10, all_signals, history=list(visit_history)))
     current.status = "complete"
     store.save_visits(pid, visits)
     await bus.emit("visit_complete", patient=pid, visit=current.number)
@@ -212,11 +213,13 @@ async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
     store.write_artifact(pid, current.number, "observations", observations)
 
     await bus.emit("visit_analyzing", patient=pid, visit=current.number)  # live reasoning done → phone stops recording
-    summary = await roles.post_visit_summary(settings, bus, store, pid, current.number,
-                                             heard or [roles._transcript_text(transcript)], all_signals,
-                                             observations, brief, history=visit_history)
-    await roles.build_visit_note(settings, bus, store, pid, current.number,
-                                 transcript, current.icd10, all_signals, history=visit_history)
+    # Summary and note are independent — run them in parallel, each on its own history copy.
+    summary, _ = await asyncio.gather(
+        roles.post_visit_summary(settings, bus, store, pid, current.number,
+                                 heard or [roles._transcript_text(transcript)], all_signals,
+                                 observations, brief, history=list(visit_history)),
+        roles.build_visit_note(settings, bus, store, pid, current.number,
+                               transcript, current.icd10, all_signals, history=list(visit_history)))
     if current.status != "complete":
         current.status = "complete"
         store.save_visits(pid, visits)
@@ -303,12 +306,13 @@ async def run_streaming_visit(settings: Settings, bus: EventBus, store: PatientS
                          [{"chunk": n, "text": transcripts[n]} for n in ordered])
     store.write_artifact(pid, current.number, "observations", observations)
     await bus.emit("visit_analyzing", patient=pid, visit=current.number)  # live reasoning done → phone stops recording
-    summary = await roles.post_visit_summary(settings, bus, store, pid, current.number,
-                                             [transcripts[n] for n in ordered], all_signals,
-                                             observations, brief, history=visit_history)
-    await roles.build_visit_note(settings, bus, store, pid, current.number,
-                                 [transcripts[n] for n in ordered], current.icd10, all_signals,
-                                 history=visit_history)
+    # Summary and note are independent — run them in parallel, each on its own history copy.
+    tp = [transcripts[n] for n in ordered]
+    summary, _ = await asyncio.gather(
+        roles.post_visit_summary(settings, bus, store, pid, current.number, tp, all_signals,
+                                 observations, brief, history=list(visit_history)),
+        roles.build_visit_note(settings, bus, store, pid, current.number, tp, current.icd10,
+                               all_signals, history=list(visit_history)))
     current.status = "complete"
     store.save_visits(pid, visits)
     await bus.emit("visit_complete", patient=pid, visit=current.number)
