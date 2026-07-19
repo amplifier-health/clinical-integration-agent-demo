@@ -26,6 +26,7 @@ REASONER_SYSTEM = (
     "between the patient's words and their vocal signals, or a strong emerging trend. When you do "
     "speak, use at most one sentence; never restate the transcript or enumerate every signal. "
     "Favor precision over recall — a missed minor cue is fine; a noisy false alarm is not. "
+    "Never suggest 'establishing a baseline' or generic monitoring — say something specific or nothing. "
     "Use the read_chart tool only if chart history would change your assessment. " + _NEVER_DIAGNOSE
 )
 

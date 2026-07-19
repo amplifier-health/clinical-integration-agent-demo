@@ -257,6 +257,24 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .seg button{padding:6px 13px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
 .seg button.on{background:var(--amp-brown);color:#fff}
 .integ-foot{padding:16px 28px 24px;border-top:1px solid var(--line-2);display:flex;justify-content:flex-end}
+/* on-device (phone) configuration sheet, opened by the gear */
+.sug-label{position:relative}
+.gear{position:absolute;right:14px;top:9px;font-size:15px;line-height:1;color:inherit;opacity:.6;
+  background:none;border:0;cursor:pointer;padding:2px 6px;border-radius:7px}
+.gear:hover{opacity:1;background:rgba(0,0,0,.07)}
+.phone-config{position:absolute;left:0;right:0;bottom:0;z-index:9;max-height:80%;overflow:auto;
+  background:var(--surface);border-top:1px solid var(--line);border-radius:20px 20px 0 0;color:var(--ink);
+  box-shadow:0 -14px 34px -14px rgba(60,35,20,.4);padding:15px 18px 22px;
+  transform:translateY(106%);transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+.phone-config.open{transform:translateY(0)}
+.pc-hd{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;margin-bottom:6px;color:var(--amp-ink)}
+.pc-hd span{font-size:11px;font-weight:700;color:var(--amp-brown);background:color-mix(in oklab,var(--amp-tan) 24%,#fff);
+  border:1px solid color-mix(in oklab,var(--amp-tan) 55%,#fff);border-radius:999px;padding:1px 8px}
+.pc-x{margin-left:auto;font-size:14px;color:var(--muted);background:none;border:0;cursor:pointer}
+.pc-sec{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);margin:13px 0 8px}
+.phone-config .cfg-grid{grid-template-columns:1fr 1fr;gap:7px}
+.phone-config .uc{padding:8px 10px}
+.phone-config .uc .ucn{font-size:12px}
 </style></head>
 <body>
 <div class="app">
@@ -283,9 +301,18 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
             <div><div class="nm" id="mName">—</div><div class="mrn" id="mMrn">MRN —</div></div>
             <div class="timer" id="mTimer">0:00</div>
           </div>
-          <div class="sug-label">Suggested discussion topics</div>
+          <div class="sug-label">Voice-biomarker signals<button class="gear" id="gearBtn" aria-label="Configuration">⚙</button></div>
+          <div class="phone-config" id="phoneConfig">
+            <div class="pc-hd">Amplifier configuration <span id="pcVer">v—</span><button class="pc-x" id="pcX">✕</button></div>
+            <div class="pc-sec">Enabled clinical outputs</div>
+            <div class="cfg-grid" id="cfgGrid"><div class="io-row">loading…</div></div>
+            <div class="pc-sec">Explanation depth</div>
+            <div class="seg" id="depthSeg">
+              <button data-d="minimal">minimal</button><button data-d="standard" class="on">standard</button><button data-d="detailed">detailed</button>
+            </div>
+          </div>
           <div class="sug-list" id="sugList">
-            <div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div><div class="s">Topics appear as the visit is analyzed</div></div></div>
+            <div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div><div class="s">Voice signals surface here as they emerge</div></div></div>
           </div>
           <div class="wave" id="wave"></div>
           <div class="rec-hint" id="recHint">Tap to record</div>
@@ -352,18 +379,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
           <code>POST /v2/models/&lt;model&gt;/analyze</code> and stream the result back. Overlap keeps signals stable across window edges.</div>
       </div>
 
-      <div class="cfg">
-        <div class="chd">Enabled clinical outputs <span class="cfg-owner">· the sellable contract surface (v<span id="cfgVer">—</span>)</span></div>
-        <div class="cfg-grid" id="cfgGrid"><div class="io-row">loading…</div></div>
-        <div class="depthrow">
-          <span class="chd" style="margin:0">Explanation depth</span>
-          <div class="seg" id="depthSeg">
-            <button data-d="minimal">minimal</button><button data-d="standard" class="on">standard</button><button data-d="detailed">detailed</button>
-          </div>
-        </div>
-        <div class="cnote">These are the contract's clinical event types (v<span id="cfgVer2">—</span>); telemetry &amp; reasoning
-          events stream separately. Depth controls the <code>explanation</code> block (summary → +confidence → +drivers/trend).</div>
-      </div>
+      <div class="cnote" style="text-align:center">Configuration (enabled outputs &amp; explanation depth) lives on the device — tap the ⚙ on the phone.</div>
     </div>
     <div class="integ-foot"><button class="btn play" id="integGo">Enter the demo →</button></div>
   </div>
@@ -380,7 +396,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 <script>
 const $=id=>document.getElementById(id);
 const SEED_HPI = c => `${c.name} is a ${c.age}-year-old ${c.sex==='F'?'woman':c.sex==='M'?'man':'patient'} with a history of ${(c.problems||[]).join(', ').toLowerCase()||'—'}, on ${(c.meds||[]).join(', ')||'no daily medications'}, presenting for ${(c.chief_complaint||'follow-up').toLowerCase().replace(/\\.$/,'')}. The encounter is being recorded and ambiently analyzed; voice-biomarker signals are surfaced as considerations, not diagnoses.`;
-let es, chart=null, timer=null, secs=0, sugSeen=new Set(), streaming=false, tokAgent=null, tokBuf=null;
+let es, chart=null, timer=null, secs=0, streaming=false, tokAgent=null, tokBuf=null;
 // Backend base URL: default same-origin (works when served by the backend on :8000 or the
 // offline mock server). Override with ?base=http://localhost:8000 to point elsewhere.
 const P = new URLSearchParams(location.search);
@@ -403,16 +419,18 @@ function setRecUI(state){ // 'recording' | 'done'
 }
 function stopVisit(){ if(es)es.close(); clearInterval(timer); setRecUI('done'); }
 
+let CHART_VISITS=[], ALL_VISITS=[];
 async function loadChart(){
   try{
     const raw=await(await fetch(BASE+'/patients/'+PID+'/chart')).json();
     chart=raw.chart||raw;  // backend returns the chart directly; mock wraps in {chart}
-    chart.name=chart.name||PID; chart.problems=chart.problems||[]; chart.meds=chart.meds||[];
+    const p=chart.patient||{};  // real backend nests patient meta here
+    chart.name=chart.name||p.alias||PID; chart.age=chart.age||p.age; chart.sex=chart.sex||p.sex;
+    chart.problems=chart.problems||[]; chart.meds=chart.meds||[]; CHART_VISITS=chart.visits||[];
     const init=(chart.name||'?').split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase();
     $('mName').textContent=chart.name; $('mMrn').textContent='MRN '+(chart.mrn||'—'); $('mAv').textContent=init;
     $('nName').textContent=chart.name; $('nMrn').textContent='MRN '+(chart.mrn||'—'); $('nAv').textContent=init;
-    $('aiPt').textContent=chart.name.split(' ')[0]+' · current encounter';
-    seedNote();
+    seedNote(); seedPriorContext();
   }catch(e){  // make a failed chart load visible instead of showing a blank patient
     chart={name:PID+' · chart unavailable',problems:[],meds:[]};
     ['mName','nName'].forEach(i=>$(i).textContent=chart.name); seedNote();
@@ -421,15 +439,36 @@ async function loadChart(){
 function seedNote(){
   $('noteBody').innerHTML=`
    <h2>History &amp; Physical — Primary Care</h2>
-   <div class="kv">Patient: ${chart.name} &nbsp;·&nbsp; MRN ${chart.mrn||'—'} &nbsp;·&nbsp; ${chart.age} &nbsp;·&nbsp; ${chart.sex}</div>
-   <div class="kv">Active problems: ${(chart.problems||[]).join(' · ')}</div>
-   <div class="kv">Medications: ${(chart.meds||[]).join(' · ')||'—'}</div>
-   <h2>Chief complaint</h2><p>${chart.chief_complaint||'—'}</p>
+   <div class="kv">Patient: ${chart.name} &nbsp;·&nbsp; MRN ${chart.mrn||'—'} &nbsp;·&nbsp; ${chart.age||'—'} &nbsp;·&nbsp; ${chart.sex||'—'}</div>
+   <div id="priorMount"></div>
    <h2>History of present illness</h2><p>${SEED_HPI(chart)}</p>
    <div id="flowMount"></div>
    <h2 id="asmtHd" style="display:none">Assessment &amp; plan — voice-informed</h2>
    <div id="asmtMount"></div>
    <div class="plan" id="planMount"></div>`;
+}
+function _selectedNum(){ const v=$('visitPick')&&$('visitPick').value;
+  if(v) return +v;                                   // a specific historical visit
+  const nums=ALL_VISITS.map(v=>v.number);            // planned/today → everything complete is prior
+  return nums.length?Math.max(...nums)+1:9999; }
+function seedPriorContext(){  // seed the note with what we already KNOW before any live analysis:
+  const mount=$('priorMount'); if(!mount) return; mount.innerHTML=''; // prior ICD-10 + prior voice findings
+  const sel=_selectedNum();
+  const prior=ALL_VISITS.filter(v=>v.number<sel && v.status==='complete').sort((a,b)=>a.number-b.number);
+  if(!prior.length) return;
+  const byNum=Object.fromEntries(CHART_VISITS.map(v=>[v.number,v]));
+  const sig=new Map();  // signal -> {count, latestTier, label}
+  prior.forEach(v=>{ const cv=byNum[v.number]||{}; (cv.signals||[]).forEach(s=>{ if(!s.flagged)return;
+    const o=sig.get(s.name)||{count:0,label:s.label||s.name}; o.count++; o.tier=s.level; sig.set(s.name,o); }); });
+  const icd=prior.filter(v=>(v.icd10||[]).length).slice(-8);
+  let h='<h2>Pre-visit context · from prior appointments</h2>';
+  h+='<div class="kv" style="opacity:.8;margin-bottom:6px">Seeded from the chart before this visit is recorded — no live analysis yet.</div>';
+  if(icd.length){ h+='<div class="kv"><b>ICD-10 history</b></div>';
+    h+=icd.map(v=>`<div class="kv">• ${v.date} — ${(v.icd10||[]).map(c=>c.code+(c.description?' ('+c.description+')':'')).join(', ')}</div>`).join(''); }
+  if(sig.size){ h+='<div class="kv" style="margin-top:8px"><b>Voice-biomarker findings from prior visits</b></div>';
+    h+=[...sig.entries()].sort((a,b)=>b[1].count-a[1].count).map(([n,o])=>
+      `<div class="kv">• ${o.label} <span style="color:var(--muted)">— flagged in ${o.count} prior visit${o.count>1?'s':''}, most recent ${o.tier}</span></div>`).join(''); }
+  mount.innerHTML=h;
 }
 loadChart();
 // Populate the appointment toggle so any appointment can be replayed with only its prior history.
@@ -437,6 +476,7 @@ fetch(BASE+'/patients/'+PID+'/visits')
   .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
   .then(vs=>{
     const sel=$('visitPick'); if(!Array.isArray(vs)||!vs.length) return;
+    ALL_VISITS=vs;
     sel.innerHTML='';  // replace the placeholder once we actually have visits
     vs.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(v=>{
       const codes=(v.icd10||[]).map(c=>c.code).join(', ');
@@ -445,6 +485,8 @@ fetch(BASE+'/patients/'+PID+'/visits')
       o.textContent=`${v.date||'—'} · ${v.reason||('visit '+v.number)}${codes?' ('+codes+')':''}${planned?' — today':''}`;
       sel.appendChild(o);
     });
+    sel.onchange=seedPriorContext;   // re-seed the note's pre-visit context for the chosen visit
+    seedPriorContext();
   })
   .catch(e=>{ console.warn('could not load visits for '+PID+' at '+(BASE||location.origin)+':',e.message);
     const o=document.createElement('option'); o.disabled=true;
@@ -474,21 +516,29 @@ function addStep(d){
   log.appendChild(el);log.scrollTop=1e9;
   $('opener').classList.add('pinging');
 }
-function addTopic(d){
-  if(sugSeen.has((d.title||'').toLowerCase()))return; sugSeen.add((d.title||'').toLowerCase());
+// The mobile screen is a glanceable voice-signal surface only: brief, one line each, no
+// numbers/scores, no clinician prose or baseline directives (those live in the post-visit note).
+const _SIG_LABEL={'elevated-androgens':'Elevated androgens','iron-deficiency':'Iron deficiency',
+  'elevated-blood-pressure':'Blood pressure','mood-disruption':'Mood disruption','dehydration':'Dehydration',
+  'anxiety':'Anxiety','fatigue':'Fatigue'};
+const _TIER_RANK={consider:1,moderate:2,elevated:3,high:4};
+const sigShown=new Map();  // signal name -> highest tier surfaced
+function _friendly(n){ return _SIG_LABEL[n]||n.replace(/-/g,' ').replace(/\b\w/,c=>c.toUpperCase()); }
+function addSignalChip(sig){
+  const lvl=(sig.level||'').toLowerCase(); if(!_TIER_RANK[lvl])return;   // only flagged tiers
+  const prev=sigShown.get(sig.name); if(prev && _TIER_RANK[prev]>=_TIER_RANK[lvl])return;
+  sigShown.set(sig.name,lvl);
   const first=$('sugList').querySelector('.faint'); if(first)first.remove();
-  const el=document.createElement('div');el.className='sug voice';
-  const badge=d.source? `<span class="badge">${sparkSvg}${d.source} · ${Math.round((d.confidence||0)*100)}%</span>`:'';
-  el.innerHTML=`<span class="tick"></span><div><div class="t">${d.title}</div><div class="s">${d.rationale||''}</div>${badge}</div>`;
-  $('sugList').appendChild(el);$('sugList').scrollTop=1e9;
-}
-function addBriefing(items){
-  const first=$('sugList').querySelector('.faint'); if(first)first.remove();
-  items.forEach(it=>{const el=document.createElement('div');el.className='sug'+(it.source==='chart'?'':' voice');
-    el.innerHTML=`<span class="tick"></span><div><div class="t">${it.text}</div><div class="s">${it.source}</div></div>`;
-    $('sugList').appendChild(el);});
-  const add=document.createElement('div');add.className='sug faint';add.innerHTML='<span class="tick"></span><div><div class="t">Add more…</div></div>';
-  $('sugList').appendChild(add);
+  let el=$('sugList').querySelector('.sug[data-sig="'+sig.name+'"]');
+  if(!el){ el=document.createElement('div'); el.className='sug voice'; el.setAttribute('data-sig',sig.name);
+    $('sugList').appendChild(el); }
+  el.replaceChildren();
+  const tick=document.createElement('span'); tick.className='tick';
+  const wrap=document.createElement('div');
+  const t=document.createElement('div'); t.className='t'; t.textContent=_friendly(sig.name);
+  const s=document.createElement('div'); s.className='s'; s.textContent='voice signal · '+lvl;
+  wrap.append(t,s); el.append(tick,wrap);
+  $('sugList').scrollTop=1e9;
 }
 function addFlow(d){
   let m=$('flowMount');
@@ -510,7 +560,9 @@ function addFollow(d){
   el.innerHTML=`<span class="mk">${d.discussed?'✓':'!'}</span><div style="flex:1"><div class="txt">${d.text}</div><div class="why">${d.why||''}</div></div>${d.discussed?'':'<span class="tagg">CARE GAP</span>'}`;
   $('planMount').appendChild(el);
 }
-function tickTimer(){secs++;const m=Math.floor(secs/60),s=secs%60;$('mTimer').textContent=`${m}:${s<10?'0':''}${s}`;}
+function tickTimer(){ // advance in visit-time: each real second = SPEED seconds of the encounter
+  secs+=Math.max(1,Math.round(Number($('speed').value)||1));
+  const m=Math.floor(secs/60),s=secs%60;$('mTimer').textContent=`${m}:${s<10?'0':''}${s}`;}
 
 /* ---- backend-event adapters (map the backend contract onto the UI panels) ---- */
 function addToken(d){ // streamed Claude output → grouped block in the reasoning tab
@@ -520,11 +572,9 @@ function addToken(d){ // streamed Claude output → grouped block in the reasoni
   tokBuf.querySelector('.msg').textContent+=d.text||'';
   $('rlog').scrollTop=1e9; $('opener').classList.add('pinging');
 }
-function addObservation(text){ // live per-chunk reasoner output → mobile suggested topic
+function addObservation(text){ // reasoner prose → behind-the-scenes log only, never the phone
   tokAgent=null; const t=(text||'').trim(); if(!t)return;
-  if(/^(nothing|no notable|none|not notable|no new|unremarkable)/i.test(t)){ addStep({phase:'reason',message:'observation: '+t}); return; }
-  const m=t.match(/^(.*?[.!?])\s+(.*)$/); const title=(m?m[1]:t).slice(0,96); const rest=m?m[2]:'';
-  addTopic({title,rationale:rest,source:'voice'});
+  addStep({phase:'reason',message:'observation: '+t});
 }
 const _FLAG=new Set(['consider','moderate','elevated','high']);
 function addSummary(d){
@@ -540,9 +590,9 @@ function addChartDraft(d){ (d.items||[]).slice(0,3).forEach(it=>addAddendum({sec
 function addNextTopics(d){ (d.items||[]).slice(0,3).forEach(t=>addFollow({text:t,why:'To raise at the next visit',discussed:false})); }
 
 function play(){
-  if(es)es.close(); sugSeen.clear(); tokAgent=null;
-  $('sugList').innerHTML='<div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div><div class="s">Analyzing the conversation</div></div></div>';
-  $('rlog').innerHTML='';seedNote();
+  if(es)es.close(); sigShown.clear(); tokAgent=null;
+  $('sugList').innerHTML='<div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div><div class="s">Voice signals surface here as they emerge</div></div></div>';
+  $('rlog').innerHTML='';seedNote();seedPriorContext();  // keep pre-visit context as the starting note
   secs=0;$('mTimer').textContent='0:00';clearInterval(timer);timer=setInterval(tickTimer,1000);
   setRecUI('recording');
   let ended=false;  // so a normal stream close doesn't look like a connection error
@@ -552,12 +602,12 @@ function play(){
   es.onerror=()=>{ if(!ended && es.readyState!==EventSource.OPEN){
     addStep({phase:'gap',message:'⚠ event stream error — is the backend reachable at '+(BASE||location.origin)+'?'}); } };
   on('visit_started',()=>{$('recLabel').textContent='Recording · analyzing';});
-  on('pre_visit_brief',d=>addBriefing([
-    ...(d.topics_to_discuss||[]).map(t=>({text:t,source:'chart'})),
-    ...(d.vocal_trends||[]).map(t=>({text:t,source:'voice-history'}))]));
+  on('pre_visit_brief',d=>addStep({phase:'pre',message:'pre-visit brief · '+(d.brief||'')}));  // behind the scenes, not the phone
   on('transcript',d=>addStep({phase:'reason',message:'heard: '+(d.text||'')}));
   on('api_job_created',d=>addStep({phase:'score',message:`chunk ${d.chunk} → POST /v2/models/${d.model||'aria'}/analyze → job ${d.job_id||''}`}));
-  on('api_job_result',d=>{ tokAgent=null; const log=$('rlog');const el=document.createElement('div');el.className='rbio';
+  on('api_job_result',d=>{ tokAgent=null;
+    (d.signals||[]).forEach(addSignalChip);  // flagged voice signals → the mobile screen (brief, no numbers)
+    const log=$('rlog');const el=document.createElement('div');el.className='rbio';  // full detail (with scores) stays behind the scenes
     el.innerHTML=(d.signals||[]).map(s=>`${s.name} <b>${(+(s.score||0)).toFixed(2)}</b>`).join(' · ')||'(no conclusive signals)';
     log.appendChild(el);log.scrollTop=1e9;});
   on('agent_token',addToken);
@@ -587,7 +637,7 @@ $('recBtn').onclick=()=>{ streaming?stopVisit():play(); };
 const PRETTY=s=>s.replace(/_/g,' ');
 function renderContract(c){
   const ver=c.contract_version||'—';
-  $('verPill').textContent='contract v'+ver; $('cfgVer').textContent=ver; $('cfgVer2').textContent=ver;
+  $('verPill').textContent='contract v'+ver; $('pcVer').textContent='v'+ver;
   const ev=c.events||{}, clin=new Set(c.clinical_types||[]);
   // "Us → scribe": the clinical output events, each tagged with its lifecycle phase.
   const out=$('ioOut'); out.innerHTML='';
@@ -610,6 +660,9 @@ fetch(BASE+'/contract').then(r=>r.ok?r.json():null).then(c=>{ if(c) renderContra
   .catch(()=>{ $('cfgGrid').innerHTML='<div class="io-row">contract unavailable — is the backend running?</div>'; });
 $('depthSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
   $('depthSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); });
+// on-device config sheet (gear on the phone)
+$('gearBtn').onclick=()=>$('phoneConfig').classList.toggle('open');
+$('pcX').onclick=()=>$('phoneConfig').classList.remove('open');
 const showInteg=v=>$('integ').classList.toggle('open',v);
 $('integBtn').onclick=()=>showInteg(true);
 $('integX').onclick=()=>showInteg(false);
