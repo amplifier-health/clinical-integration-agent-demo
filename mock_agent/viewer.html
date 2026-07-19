@@ -262,6 +262,12 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .gear{position:absolute;right:12px;top:2px;font-size:28px;line-height:1;color:inherit;opacity:.72;
   background:none;border:0;cursor:pointer;padding:4px 8px;border-radius:10px}
 .gear:hover{opacity:1;background:rgba(0,0,0,.07)}
+/* concise pre-visit "watch for" card on the phone (shown only if pre_visit_brief is enabled) */
+.watchfor{margin:6px 20px 2px;background:var(--gap-soft);border:1px solid color-mix(in oklab,var(--gap) 32%,#fff);
+  border-radius:14px;padding:9px 13px;animation:fadein .4s both}
+.wf-hd{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--gap);margin-bottom:5px}
+.wf-items{display:flex;flex-direction:column;gap:3px}
+.wf-items .wf{font-size:12.5px;color:var(--ink);line-height:1.3}
 .phone-config{position:absolute;left:0;right:0;bottom:0;z-index:9;max-height:80%;overflow:auto;
   background:var(--surface);border-top:1px solid var(--line);border-radius:20px 20px 0 0;color:var(--ink);
   box-shadow:0 -14px 34px -14px rgba(60,35,20,.4);padding:15px 18px 22px;
@@ -300,6 +306,10 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
             <div class="avatar" id="mAv">·</div>
             <div><div class="nm" id="mName">—</div><div class="mrn" id="mMrn">MRN —</div></div>
             <div class="timer" id="mTimer">0:00</div>
+          </div>
+          <div class="watchfor" id="watchFor" hidden>
+            <div class="wf-hd">◆ Watch for · from prior visits</div>
+            <div class="wf-items" id="wfItems"></div>
           </div>
           <div class="sug-label">Voice-biomarker signals<button class="gear" id="gearBtn" aria-label="Configuration">⚙</button></div>
           <div class="phone-config" id="phoneConfig">
@@ -572,6 +582,16 @@ function addToken(d){ // streamed Claude output → grouped block in the reasoni
   tokBuf.querySelector('.msg').textContent+=d.text||'';
   $('rlog').scrollTop=1e9; $('opener').classList.add('pinging');
 }
+function isEnabled(type){ const el=document.querySelector('.uc[data-type="'+type+'"]'); return !el||el.classList.contains('on'); }
+function showWatchFor(d){ // concise pre-visit "watch for" on the phone, gated on the config toggle
+  if(!isEnabled('pre_visit_brief')){ $('watchFor').hidden=true; return; }
+  const items=[...(d.vocal_trends||[]),...(d.topics_to_discuss||[])].filter(Boolean).slice(0,3);
+  if(!items.length) return;
+  const m=$('wfItems'); m.replaceChildren();
+  items.forEach(t=>{ const el=document.createElement('div'); el.className='wf';
+    el.textContent='• '+(t.length>64?t.slice(0,62)+'…':t); m.appendChild(el); });
+  $('watchFor').hidden=false;
+}
 function addObservation(text){ // reasoner prose → behind-the-scenes log only, never the phone
   tokAgent=null; const t=(text||'').trim(); if(!t)return;
   addStep({phase:'reason',message:'observation: '+t});
@@ -593,6 +613,7 @@ function play(){
   if(es)es.close(); sigShown.clear(); tokAgent=null;
   $('sugList').innerHTML='<div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div><div class="s">Voice signals surface here as they emerge</div></div></div>';
   $('rlog').innerHTML='';seedNote();seedPriorContext();  // keep pre-visit context as the starting note
+  $('watchFor').hidden=true;$('wfItems').replaceChildren();  // clear last visit's watch-for
   secs=0;$('mTimer').textContent='0:00';clearInterval(timer);timer=setInterval(tickTimer,1000);
   setRecUI('recording');
   let ended=false;  // so a normal stream close doesn't look like a connection error
@@ -602,7 +623,8 @@ function play(){
   es.onerror=()=>{ if(!ended && es.readyState!==EventSource.OPEN){
     addStep({phase:'gap',message:'⚠ event stream error — is the backend reachable at '+(BASE||location.origin)+'?'}); } };
   on('visit_started',()=>{$('recLabel').textContent='Recording · analyzing';});
-  on('pre_visit_brief',d=>addStep({phase:'pre',message:'pre-visit brief · '+(d.brief||'')}));  // behind the scenes, not the phone
+  on('pre_visit_brief',d=>{ addStep({phase:'pre',message:'pre-visit brief · '+(d.brief||'')});  // full brief → behind the scenes
+    showWatchFor(d); });                                                                          // concise "watch for" → phone (if enabled)
   on('transcript',d=>addStep({phase:'reason',message:'heard: '+(d.text||'')}));
   on('api_job_created',d=>addStep({phase:'score',message:`chunk ${d.chunk} → POST /v2/models/${d.model||'aria'}/analyze → job ${d.job_id||''}`}));
   on('api_job_result',d=>{ tokAgent=null;
@@ -648,12 +670,15 @@ function renderContract(c){
       row.append(b,ph); out.appendChild(row); });
   // Config: each clinical output as an enable toggle (all on = full contract).
   const g=$('cfgGrid'); g.innerHTML='';
-  [...clin].sort().forEach(t=>{ const el=document.createElement('div'); el.className='uc on';
+  [...clin].sort().forEach(t=>{ const el=document.createElement('div'); el.className='uc on'; el.dataset.type=t;
     const sw=document.createElement('span'); sw.className='sw';
     const nm=document.createElement('span'); nm.className='ucn';
     nm.innerHTML=''; nm.append(document.createTextNode(PRETTY(t)));
     const sub=document.createElement('small'); sub.textContent=(ev[t]||{}).phase||''; nm.append(sub);
-    el.append(sw,nm); el.onclick=()=>el.classList.toggle('on'); g.appendChild(el); });
+    el.append(sw,nm);
+    el.onclick=()=>{ el.classList.toggle('on');  // toggles gate what surfaces (pre_visit_brief → watch-for card)
+      if(t==='pre_visit_brief' && !el.classList.contains('on')) $('watchFor').hidden=true; };
+    g.appendChild(el); });
 }
 fetch(BASE+'/contract').then(r=>r.ok?r.json():null).then(c=>{ if(c) renderContract(c);
   else $('cfgGrid').innerHTML='<div class="io-row">contract unavailable — is the backend running?</div>'; })
