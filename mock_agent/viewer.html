@@ -124,6 +124,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .tabs{display:flex;gap:4px;margin-top:14px}
 .tab{padding:7px 14px;border-radius:10px 10px 0 0;font-size:13px;font-weight:600;color:var(--muted)}
 .tab.active{color:var(--ink);background:var(--panel);box-shadow:inset 0 -2px 0 var(--coral)}
+.tab-badge{display:inline-block;min-width:16px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--coral);color:#fff;font-size:10px;font-weight:800;text-align:center;vertical-align:top}
 .note-body{padding:22px 32px 60px;max-width:70ch}
 .note-body h2{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--coral-2);font-weight:700;margin:26px 0 8px}
 .note-body h2:first-child{margin-top:6px}
@@ -352,9 +353,11 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
         <div class="row"><div class="avatar" id="nAv">·</div>
           <div style="flex:1"><h1 id="nName">—</h1><div class="mrn" id="nMrn">MRN —</div></div>
         </div>
-        <div class="tabs"><div class="tab active">Note</div><div class="tab">Flowsheets</div><div class="tab">Orders</div></div>
+        <div class="tabs"><div class="tab active" data-pane="noteBody">Note</div><div class="tab" data-pane="flowsheetsBody">Flowsheets</div><div class="tab" data-pane="ordersBody">Orders <span id="ordersCount" class="tab-badge" hidden>0</span></div></div>
       </div>
       <div class="note-body" id="noteBody"></div>
+      <div class="note-body" id="flowsheetsBody" hidden><p style="color:var(--muted)">No flowsheet entries.</p></div>
+      <div class="note-body" id="ordersBody" hidden><p id="ordersEmpty" style="color:var(--muted)">No orders yet. Suggested screening appears here when enabled.</p></div>
     </div></div>
 
   </div>
@@ -639,6 +642,17 @@ function addSummary(d){
     addAddendum({section:'Voice–words discordance',text:d.discordance});
 }
 function addChartDraft(d){ (d.items||[]).slice(0,3).forEach(it=>addAddendum({section:'Chart update · draft',text:`${it.description}${it.rationale?' — '+it.rationale:''}`})); }
+let _orders=0;
+function addScreenerOrder(d){  // suggested screener → the Orders tab, with an Administer action
+  const em=$('ordersEmpty'); if(em)em.remove();
+  const el=document.createElement('div'); el.className='addendum';
+  el.innerHTML=`<div class="tag">${sparkSvg} Suggested screening · voice-flagged</div>`
+    +`<div><b>${d.instrument||''}</b> — ${d.condition||''} <span style="color:var(--muted)">(voice signal: ${d.signal||''})</span></div>`;
+  const act=document.createElement('button'); act.className='btn ghost'; act.style.marginTop='8px'; act.textContent='Administer';
+  act.onclick=()=>{ act.textContent='Ordered ✓'; act.classList.add('on'); act.disabled=true; };
+  el.appendChild(act); $('ordersBody').appendChild(el);
+  _orders++; const b=$('ordersCount'); b.textContent=_orders; b.hidden=false;
+}
 function addTrialToNote(d){  // renders inside the Note (not a side panel), under "Surfaced Clinical Trials"
   $('trialsHd').style.display='block';
   const el=document.createElement('div'); el.className='addendum';
@@ -654,6 +668,7 @@ function play(){
   if(es)es.close(); sigShown.clear(); tokAgent=null;
   $('sugList').innerHTML='<div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div><div class="s">Voice signals surface here as they emerge</div></div></div>';
   $('rlog').innerHTML='';seedNote();seedPriorContext();  // keep pre-visit context as the starting note
+  _orders=0; const _ob=$('ordersBody'); if(_ob){_ob.innerHTML='<p id="ordersEmpty" style="color:var(--muted)">No orders yet. Suggested screening appears here when enabled.</p>';} const _oc=$('ordersCount'); if(_oc){_oc.textContent='0';_oc.hidden=true;}
   $('watchFor').hidden=true;$('wfItems').replaceChildren();  // clear last visit's watch-for
   secs=0;$('mTimer').textContent='0:00';clearInterval(timer);timer=setInterval(tickTimer,1000);
   startVisitAudio();  // play the real recording (sped up) so the demo can hear the visit
@@ -683,6 +698,7 @@ function play(){
   on('chart_draft',addChartDraft);
   on('topics',addNextTopics);
   on('trial_match',addTrialToNote);  // renders under "Surfaced Clinical Trials" in the Note (opt-in)
+  on('screener_suggested',addScreenerOrder);  // renders in the Orders tab (opt-in)
   on('longitudinal_narrative',d=>addStep({phase:'post',message:d.text||''}));
   on('error',d=>addStep({phase:'gap',message:'error: '+(d.message||'')}));
   on('visit_complete',()=>{ ended=true; clearInterval(timer); stopAudio(); setRecUI('done'); if(es)es.close(); });
@@ -719,8 +735,8 @@ function renderContract(c){
       row.append(b,ph); out.appendChild(row); });
   // Config: each clinical output as an enable toggle (all on = full contract).
   const g=$('cfgGrid'); g.innerHTML='';
-  // trials default OFF (opt-in — searching + surfacing trials is a deliberate choice); all else on
-  [...clin].sort().forEach(t=>{ const el=document.createElement('div'); el.className='uc'+(t==='trial_match'?'':' on'); el.dataset.type=t;
+  // trials + screeners default OFF (opt-in); all else on
+  [...clin].sort().forEach(t=>{ const el=document.createElement('div'); el.className='uc'+((t==='trial_match'||t==='screener_suggested')?'':' on'); el.dataset.type=t;
     const sw=document.createElement('span'); sw.className='sw';
     const nm=document.createElement('span'); nm.className='ucn';
     nm.innerHTML=''; nm.append(document.createTextNode((ev[t]||{}).label||PRETTY(t)));
@@ -736,6 +752,11 @@ fetch(BASE+'/contract').then(r=>r.ok?r.json():null).then(c=>{ if(c) renderContra
   .catch(()=>{ $('cfgGrid').innerHTML='<div class="io-row">contract unavailable — is the backend running?</div>'; });
 $('depthSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
   $('depthSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); });
+// note tabs (Note / Flowsheets / Orders) — show the matching pane
+document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); tab.classList.add('active');
+  ['noteBody','flowsheetsBody','ordersBody'].forEach(id=>{ const el=$(id); if(el)el.hidden=(id!==tab.dataset.pane); });
+});
 // on-device config sheet (gear on the phone)
 $('gearBtn').onclick=()=>$('phoneConfig').classList.toggle('open');
 $('pcX').onclick=()=>$('phoneConfig').classList.remove('open');

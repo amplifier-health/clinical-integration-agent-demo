@@ -196,6 +196,16 @@ class VisitNote(_Payload):
     plan: list[str]
 
 
+class ScreenerSuggested(_Payload):
+    """A validated screening instrument suggested for a voice-flagged condition, offered as an
+    order the clinician can administer to the patient."""
+    patient: str
+    visit: int
+    instrument: str            # e.g. "GAD-7", "PHQ-9"
+    condition: str             # what it screens for, e.g. "Anxiety"
+    signal: str                # the vocal signal that triggered it, e.g. "anxiety"
+
+
 class TrialMatch(_Payload):
     patient: str
     nct_id: str
@@ -235,6 +245,7 @@ REGISTRY: dict[str, tuple[type[_Payload], PHASE]] = {
     "chart_draft": (ChartDraft, "post_visit"),
     "topics": (Topics, "post_visit"),
     "visit_note": (VisitNote, "post_visit"),
+    "screener_suggested": (ScreenerSuggested, "post_visit"),
     "trial_match": (TrialMatch, "post_visit"),
     "longitudinal_delta": (LongitudinalDelta, "longitudinal"),
     "longitudinal_narrative": (LongitudinalNarrative, "longitudinal"),
@@ -243,7 +254,7 @@ REGISTRY: dict[str, tuple[type[_Payload], PHASE]] = {
 # Which types are the stable, sellable clinical contract vs. telemetry/reasoning noise.
 CLINICAL_TYPES = {
     "pre_visit_brief", "visit_summary", "chart_draft", "topics", "visit_note",
-    "trial_match", "longitudinal_delta", "longitudinal_narrative",
+    "screener_suggested", "trial_match", "longitudinal_delta", "longitudinal_narrative",
 }
 
 # Clinician-facing names + one-line descriptions of what enabling each output does.
@@ -253,6 +264,7 @@ LABELS: dict[str, tuple[str, str]] = {
     "observation":            ("Live voice notes",          "Real-time notes during the visit when a signal is worth the clinician's attention."),
     "visit_summary":          ("Visit summary",             "An after-visit summary of the voice findings and where they agreed or disagreed with what was said."),
     "visit_note":             ("Visit note (SOAP)",         "A drafted SOAP note from the conversation and this visit's diagnoses."),
+    "screener_suggested":     ("Suggested screening",       "Validated screeners (e.g. PHQ-9, GAD-7) for flagged conditions, offered as orders to administer."),
     "chart_draft":            ("Chart update drafts",       "Proposed chart updates for the clinician to review and approve."),
     "topics":                 ("Next-visit topics",         "Things to raise at the next appointment."),
     "trial_match":            ("Clinical trial matches",    "Recruiting trials relevant to a voice-flagged issue that wasn't the focus this visit."),
