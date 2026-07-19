@@ -18,7 +18,7 @@ html,body{height:100%}
 /* Amplifier brand palette (from the brand kit): deep brown + tan neutrals, spectrogram accents */
 :root{
   --amp-brown:#4b2700; --amp-ink:#231200; --amp-tan:#b79862; --amp-sand:#dbccb1; --amp-cream:#F3EEE6;
-  --amp-purple:#9c76ff; --amp-blue:#99e4ff; --amp-coral:#ff6173; --amp-gold:#ffc163;
+  --amp-green:#c8f579; --amp-purple:#9c76ff; --amp-blue:#99e4ff; --amp-coral:#ff6173; --amp-gold:#ffc163;
 }
 body{font-family:var(--font);color:var(--ink);font-size:15px;line-height:1.5;overflow:hidden;
    background:
@@ -29,7 +29,7 @@ body::before{content:"";position:fixed;right:-60px;bottom:-80px;width:460px;heig
    background:url("assets/amplifier-brandmark.png") center/contain no-repeat;opacity:.05;
    pointer-events:none;z-index:0}
 body::after{content:"";position:fixed;left:0;right:0;top:0;height:3px;z-index:30;pointer-events:none;
-   background:linear-gradient(90deg,var(--amp-purple),var(--amp-blue),var(--amp-gold),var(--amp-coral))}
+   background:linear-gradient(90deg,var(--amp-green),var(--amp-blue),var(--amp-purple),var(--amp-gold),var(--amp-coral))}
 button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}
 ::selection{background:#f7c9bd}
 .app{height:100vh;display:flex;flex-direction:column}
@@ -51,11 +51,11 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(232,73,46,.55)}70%{box-shadow:0 0 0 9px rgba(232,73,46,0)}100%{box-shadow:0 0 0 0 rgba(232,73,46,0)}}
 .spacer{flex:1}
 .btn{padding:8px 15px;border-radius:10px;font-weight:600;font-size:13.5px;transition:.16s ease;border:1px solid transparent}
-.btn.play{background:linear-gradient(150deg,var(--coral),var(--coral-2));color:#fff;box-shadow:0 6px 16px -8px rgba(200,50,25,.7)}
+.btn.play{background:linear-gradient(150deg,var(--amp-brown),var(--amp-ink));color:var(--amp-cream);box-shadow:0 6px 16px -8px rgba(35,18,0,.6)}
 .btn.play:hover{transform:translateY(-1px)}
 .btn.play:disabled{opacity:.45;transform:none;cursor:default}
 .btn.ghost{border-color:var(--line);color:var(--ink-2);background:var(--surface)}
-.btn.ghost:hover{border-color:var(--coral);color:var(--coral)}
+.btn.ghost:hover{border-color:var(--amp-brown);color:var(--amp-brown)}
 .btn.ghost.on{background:#211a15;color:#f4efe7;border-color:#211a15}
 .speed{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
 .speed input{width:52px;padding:5px 7px;border:1px solid var(--line);border-radius:8px;font-family:inherit;background:var(--surface);color:var(--ink)}
@@ -130,9 +130,9 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .note-body h2:first-child{margin-top:6px}
 .note-body p{margin:0 0 12px;color:#2c241d}
 .note-body .kv{font-size:14px;color:var(--ink-2);margin:1px 0}
-.addendum{border-left:2.5px solid var(--ambient);background:var(--ambient-soft);border-radius:0 12px 12px 0;
+.addendum{border-left:2.5px solid var(--amp-brown);background:color-mix(in oklab,var(--amp-tan) 18%,#fff);border-radius:0 12px 12px 0;
   padding:12px 15px;margin:12px 0;animation:fadein .55s ease both}
-.addendum .tag{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ambient);display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.addendum .tag{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--amp-brown);display:flex;align-items:center;gap:6px;margin-bottom:5px}
 .addendum .tag svg{width:12px;height:12px}
 @keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 /* flowsheet */
@@ -141,10 +141,10 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .frow{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--line-2);animation:fadein .5s ease both}
 .frow .lbl{font-weight:600;font-size:14px}
 .frow .val{margin-left:auto;display:flex;align-items:center;gap:9px}
-.frow .amb{display:inline-flex;align-items:center;gap:5px;color:var(--ambient);font-size:11px;font-weight:700;background:var(--ambient-soft);padding:3px 9px;border-radius:20px;border:1px solid #e2d9ff}
+.frow .amb{display:inline-flex;align-items:center;gap:5px;color:var(--amp-brown);font-size:11px;font-weight:700;background:color-mix(in oklab,var(--amp-tan) 18%,#fff);padding:3px 9px;border-radius:20px;border:1px solid color-mix(in oklab,var(--amp-tan) 45%,#fff)}
 .frow .amb svg{width:11px;height:11px}
-.frow .v{font-weight:700;font-size:14px;padding:3px 11px;border:1.5px solid var(--ambient);border-radius:8px;
-  background:repeating-linear-gradient(135deg,transparent,transparent 5px,rgba(123,77,216,.07) 5px,rgba(123,77,216,.07) 10px)}
+.frow .v{font-weight:700;font-size:14px;padding:3px 11px;border:1.5px solid var(--amp-brown);border-radius:8px;
+  background:repeating-linear-gradient(135deg,transparent,transparent 5px,rgba(75,39,0,.07) 5px,rgba(75,39,0,.07) 10px)}
 .frow .quote{display:block;font-size:11.5px;color:var(--muted);font-style:italic;margin-top:3px}
 /* plan / followups */
 .plan{margin-top:8px;display:flex;flex-direction:column;gap:8px}
@@ -200,7 +200,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .reason-foot{padding:10px 18px;border-top:1px solid #33291f;font-size:11px;color:#8a7d68}
 .opener{position:fixed;right:20px;bottom:20px;z-index:30;background:#171310;color:#f0e7d9;padding:11px 16px;border-radius:14px;
   box-shadow:0 14px 30px -12px rgba(0,0,0,.5);display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;border:1px solid #33291f}
-.opener .d{width:8px;height:8px;border-radius:50%;background:#8f7} .opener .d{background:#7fc7e0}
+.opener .d{width:8px;height:8px;border-radius:50%;background:var(--amp-green)}
 .opener.pinging .d{animation:pulse2 1.2s infinite}
 @keyframes pulse2{0%,100%{opacity:1}50%{opacity:.3}}
 @media(max-width:1180px){.stage{grid-template-columns:300px 1fr}.ai{display:none}}
@@ -213,7 +213,8 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .integ-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
   padding:24px 28px 18px;border-bottom:1px solid var(--line-2);position:sticky;top:0;
   background:linear-gradient(var(--panel),color-mix(in oklab,var(--panel) 80%,transparent));backdrop-filter:blur(6px)}
-.integ-hd .ititle{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.integ-hd .ititle{font-size:24px;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:11px;color:var(--amp-ink)}
+.integ-hd .ititle-logo{height:30px;width:auto;display:block}
 .integ-hd .isub{color:var(--ink-2);font-size:13.5px;margin-top:3px}
 .integ-hd .x{font-size:16px;color:var(--muted);padding:4px 8px;border-radius:8px}
 .integ-hd .x:hover{background:var(--line-2);color:var(--ink)}
@@ -224,7 +225,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .io-tag{align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
   padding:4px 9px;border-radius:999px;margin-bottom:2px}
 .io-tag.scribe{background:var(--gap-soft);color:var(--gap)}
-.io-tag.ours{background:var(--ambient-soft);color:var(--ambient)}
+.io-tag.ours{background:color-mix(in oklab,var(--amp-tan) 24%,#fff);color:var(--amp-brown)}
 .io-row{font-size:13.5px;color:var(--ink-2)}.io-row b{color:var(--ink);font-weight:700}
 .io-note{margin-top:auto;font-size:12px;color:var(--muted);line-height:1.45;padding-top:4px}
 .chd{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);margin-bottom:10px}
@@ -233,18 +234,18 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 .ctrack{position:relative;height:46px;margin:6px 0 12px;border-radius:10px;
   background:repeating-linear-gradient(90deg,var(--line-2) 0 1px,transparent 1px 60px)}
 .cw{position:absolute;top:7px;height:20px;border-radius:6px;font-size:10.5px;font-weight:700;
-  color:var(--coral-ink);display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(150deg,var(--coral),var(--coral-2));opacity:.9;box-shadow:0 1px 0 rgba(0,0,0,.06)}
-.cw:nth-child(even){top:29px;opacity:.66}
-.ctick{position:absolute;bottom:-2px;width:2px;height:12px;background:var(--ambient);border-radius:2px}
+  color:var(--amp-cream);display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(150deg,var(--amp-brown),var(--amp-ink));opacity:.92;box-shadow:0 1px 0 rgba(0,0,0,.06)}
+.cw:nth-child(even){top:29px;opacity:.62}
+.ctick{position:absolute;bottom:-2px;width:3px;height:13px;background:var(--amp-green);border-radius:2px}
 .cnote{font-size:12.5px;color:var(--ink-2);line-height:1.5}.cnote code{background:var(--line-2);padding:1px 5px;border-radius:5px;font-size:12px}
 .cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:9px}
 .uc{display:flex;align-items:center;gap:9px;padding:10px 12px;background:var(--surface);
   border:1px solid var(--line);border-radius:12px;cursor:pointer;user-select:none;transition:.15s}
-.uc:hover{border-color:var(--ambient)}
+.uc:hover{border-color:var(--amp-brown)}
 .uc .sw{width:32px;height:19px;border-radius:999px;background:var(--line);position:relative;flex:none;transition:.18s}
 .uc .sw::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:.18s}
-.uc.on .sw{background:var(--ambient)}.uc.on .sw::after{left:15px}
+.uc.on .sw{background:var(--amp-brown)}.uc.on .sw::after{left:15px}
 .uc .ucn{font-size:13px;font-weight:600;color:var(--ink)}
 .uc.locked{opacity:.55;cursor:not-allowed}
 .uc .ucn small{display:block;font-weight:500;color:var(--muted);font-size:11px;letter-spacing:0}
@@ -364,7 +365,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 <div class="integ" id="integ">
   <div class="integ-card">
     <div class="integ-hd">
-      <div><div class="ititle">Undertone <span class="ver-pill" id="verPill">contract v—</span></div>
+      <div><div class="ititle"><img class="ititle-logo" src="assets/amplifier-brandmark.png" alt="Amplifier">Undertone <span class="ver-pill" id="verPill">contract v—</span></div>
         <div class="isub">Voice-biomarker-based enhancement of conversational understanding — the <em>how</em> beneath the <em>what</em>, returned as typed objects to surface as a pre-visit brief, live in the visit, or embedded in the clinical note.</div></div>
       <button class="x" id="integX">✕</button>
     </div>
@@ -421,7 +422,7 @@ function startVisitAudio(){  // play the real recording, sped up, so the demo ca
   a.onerror=()=>{};  // no audio for this visit → silently fall back to the tick timer
   a.play().catch(()=>{});
 }
-const SEED_HPI = c => `${c.name} is a ${c.age}-year-old ${c.sex==='F'?'woman':c.sex==='M'?'man':'patient'} with a history of ${(c.problems||[]).join(', ').toLowerCase()||'—'}, on ${(c.meds||[]).join(', ')||'no daily medications'}, presenting for ${(c.chief_complaint||'follow-up').toLowerCase().replace(/\\.$/,'')}. The encounter is being recorded and ambiently analyzed; voice-biomarker signals are surfaced as considerations, not diagnoses.`;
+const SEED_HPI = c => `${c.name} is a ${c.age}-year-old ${c.sex==='F'?'woman':c.sex==='M'?'man':'patient'} with a history of ${(c.problems||[]).join(', ').toLowerCase()||'—'}, on ${(c.meds||[]).join(', ')||'no daily medications'}, presenting for ${(c.chief_complaint||'follow-up').toLowerCase().replace(/\\.$/,'')}.`;
 let es, chart=null, timer=null, secs=0, streaming=false, tokAgent=null, tokBuf=null;
 // Backend base URL: default same-origin (works when served by the backend on :8000 or the
 // offline mock server). Override with ?base=http://localhost:8000 to point elsewhere.
@@ -503,7 +504,6 @@ function seedPriorContext(){  // seed the note with what we already KNOW before 
     const o=sig.get(s.name)||{count:0,label:s.label||s.name}; o.count++; o.tier=s.level; sig.set(s.name,o); }); });
   const icd=prior.filter(v=>(v.icd10||[]).length).slice(-8);
   let h='<h2>Pre-visit context · from prior appointments</h2>';
-  h+='<div class="kv" style="opacity:.8;margin-bottom:6px">Seeded from the chart before this visit is recorded — no live analysis yet.</div>';
   if(icd.length){ h+='<div class="kv"><b>ICD-10 history</b></div>';
     h+=icd.map(v=>`<div class="kv">• ${v.date} — ${(v.icd10||[]).map(c=>c.code+(c.description?' ('+c.description+')':'')).join(', ')}</div>`).join(''); }
   if(sig.size){ h+='<div class="kv" style="margin-top:8px"><b>Voice-biomarker findings from prior visits</b></div>';
@@ -690,7 +690,7 @@ function addNextTopics(d){ (d.items||[]).slice(0,3).forEach(t=>addFollow({text:t
 
 function play(){
   if(es)es.close(); sigShown.clear(); tokAgent=null; tokBuf=null;
-  $('sugList').innerHTML='<div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div><div class="s">Voice signals surface here as they emerge</div></div></div>';
+  $('sugList').innerHTML='<div class="sug faint"><span class="tick"></span><div><div class="t">Listening…</div></div></div>';
   $('rlog').innerHTML='';seedNote();seedPriorContext();  // keep pre-visit context as the starting note
   _orders=0; const _ob=$('ordersBody'); if(_ob){_ob.innerHTML='<p id="ordersEmpty" style="color:var(--muted)">No orders yet. Suggested screening appears here when enabled.</p>';} const _oc=$('ordersCount'); if(_oc){_oc.textContent='0';_oc.hidden=true;}
   $('watchFor').hidden=true;$('wfItems').replaceChildren();  // clear last visit's watch-for
