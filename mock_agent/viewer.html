@@ -466,7 +466,9 @@ function seedNote(){
    <div id="flowMount"></div>
    <h2 id="asmtHd" style="display:none">Assessment &amp; plan — voice-informed</h2>
    <div id="asmtMount"></div>
-   <div class="plan" id="planMount"></div>`;
+   <div class="plan" id="planMount"></div>
+   <h2 id="trialsHd" style="display:none">Surfaced Clinical Trials</h2>
+   <div id="trialsMount"></div>`;
 }
 function _selectedNum(){ const v=$('visitPick')&&$('visitPick').value;
   if(v) return +v;                                   // a specific historical visit
@@ -623,6 +625,15 @@ function addSummary(d){
     addAddendum({section:'Voice–words discordance',text:d.discordance});
 }
 function addChartDraft(d){ (d.items||[]).slice(0,3).forEach(it=>addAddendum({section:'Chart update · draft',text:`${it.description}${it.rationale?' — '+it.rationale:''}`})); }
+function addTrialToNote(d){  // renders inside the Note (not a side panel), under "Surfaced Clinical Trials"
+  $('trialsHd').style.display='block';
+  const el=document.createElement('div'); el.className='addendum';
+  el.innerHTML=`<div class="tag">${sparkSvg} Clinical trial · ambient</div>`
+    +`<div><b>${d.nct_id||''}</b> — ${d.title||''}</div>`
+    +(d.why_relevant?`<div class="fu-why" style="margin-top:3px">${d.why_relevant}</div>`:'')
+    +(d.eligibility_hint?`<div class="fu-why" style="margin-top:2px;color:var(--muted)">▸ ${d.eligibility_hint}</div>`:'');
+  $('trialsMount').appendChild(el);
+}
 function addNextTopics(d){ (d.items||[]).slice(0,3).forEach(t=>addFollow({text:t,why:'To raise at the next visit',discussed:false})); }
 
 function play(){
@@ -655,6 +666,7 @@ function play(){
   on('visit_summary',addSummary);
   on('chart_draft',addChartDraft);
   on('topics',addNextTopics);
+  on('trial_match',addTrialToNote);  // renders under "Surfaced Clinical Trials" in the Note (opt-in)
   on('longitudinal_narrative',d=>addStep({phase:'post',message:d.text||''}));
   on('error',d=>addStep({phase:'gap',message:'error: '+(d.message||'')}));
   on('visit_complete',()=>{ ended=true; clearInterval(timer); setRecUI('done'); if(es)es.close(); });
@@ -691,7 +703,8 @@ function renderContract(c){
       row.append(b,ph); out.appendChild(row); });
   // Config: each clinical output as an enable toggle (all on = full contract).
   const g=$('cfgGrid'); g.innerHTML='';
-  [...clin].sort().forEach(t=>{ const el=document.createElement('div'); el.className='uc on'; el.dataset.type=t;
+  // trials default OFF (opt-in — searching + surfacing trials is a deliberate choice); all else on
+  [...clin].sort().forEach(t=>{ const el=document.createElement('div'); el.className='uc'+(t==='trial_match'?'':' on'); el.dataset.type=t;
     const sw=document.createElement('span'); sw.className='sw';
     const nm=document.createElement('span'); nm.className='ucn';
     nm.innerHTML=''; nm.append(document.createTextNode((ev[t]||{}).label||PRETTY(t)));
