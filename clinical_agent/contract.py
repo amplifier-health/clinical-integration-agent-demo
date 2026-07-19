@@ -72,6 +72,13 @@ class VisitStarted(_Payload):
     reason: str
 
 
+class VisitAnalyzing(_Payload):
+    """Live per-chunk reasoning is done; the post-visit note is now being written. The UI stops
+    the 'recording' state on this and shows an analyzing indicator until visit_complete."""
+    patient: str
+    visit: int
+
+
 class VisitComplete(_Payload):
     patient: str
     visit: int
@@ -231,6 +238,7 @@ class LongitudinalNarrative(_Payload):
 
 REGISTRY: dict[str, tuple[type[_Payload], PHASE]] = {
     "visit_started": (VisitStarted, "lifecycle"),
+    "visit_analyzing": (VisitAnalyzing, "lifecycle"),
     "visit_complete": (VisitComplete, "lifecycle"),
     "error": (ErrorEvent, "lifecycle"),
     "chunk_created": (ChunkCreated, "telemetry"),

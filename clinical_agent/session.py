@@ -92,6 +92,7 @@ async def run_visit(settings: Settings, bus: EventBus, store: PatientStore,
     store.write_artifact(pid, current.number, "observations", observations)
 
     all_signals = [s for n in ordered for s in signals_by_chunk[n]]
+    await bus.emit("visit_analyzing", patient=pid, visit=current.number)  # live reasoning done → phone stops recording
     summary = await roles.post_visit_summary(settings, bus, store, pid, current.number,
                                              [transcripts[n] for n in sorted(transcripts)],
                                              all_signals, observations, brief, history=visit_history)
@@ -210,6 +211,7 @@ async def replay_visit(settings: Settings, bus: EventBus, store: PatientStore,
     store.write_artifact(pid, current.number, "signals", signals_by_chunk[ordered[-1]] if ordered else [])
     store.write_artifact(pid, current.number, "observations", observations)
 
+    await bus.emit("visit_analyzing", patient=pid, visit=current.number)  # live reasoning done → phone stops recording
     summary = await roles.post_visit_summary(settings, bus, store, pid, current.number,
                                              heard or [roles._transcript_text(transcript)], all_signals,
                                              observations, brief, history=visit_history)
@@ -300,6 +302,7 @@ async def run_streaming_visit(settings: Settings, bus: EventBus, store: PatientS
     store.write_artifact(pid, current.number, "transcript",
                          [{"chunk": n, "text": transcripts[n]} for n in ordered])
     store.write_artifact(pid, current.number, "observations", observations)
+    await bus.emit("visit_analyzing", patient=pid, visit=current.number)  # live reasoning done → phone stops recording
     summary = await roles.post_visit_summary(settings, bus, store, pid, current.number,
                                              [transcripts[n] for n in ordered], all_signals,
                                              observations, brief, history=visit_history)

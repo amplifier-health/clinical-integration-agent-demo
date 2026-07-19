@@ -745,6 +745,32 @@
         "type": "object"
       }
     },
+    "visit_analyzing": {
+      "clinical": false,
+      "description": "",
+      "label": "Visit Analyzing",
+      "phase": "lifecycle",
+      "schema": {
+        "additionalProperties": false,
+        "description": "Live per-chunk reasoning is done; the post-visit note is now being written. The UI stops\nthe 'recording' state on this and shows an analyzing indicator until visit_complete.",
+        "properties": {
+          "patient": {
+            "title": "Patient",
+            "type": "string"
+          },
+          "visit": {
+            "title": "Visit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient",
+          "visit"
+        ],
+        "title": "VisitAnalyzing",
+        "type": "object"
+      }
+    },
     "visit_complete": {
       "clinical": false,
       "description": "",

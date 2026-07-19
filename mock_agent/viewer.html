@@ -420,13 +420,14 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 <audio id="visitAudio" preload="auto" style="display:none"></audio>
 <script>
 const $=id=>document.getElementById(id);
-const AUDIO_MAX_RATE=16;  // browsers cap playbackRate around 16x
+const AUDIO_MAX_RATE=4;  // above ~4x browsers play a moment then drop the audio; keep it audible
 function stopAudio(){ const a=$('visitAudio'); try{a.pause();}catch(_){} }
 function startVisitAudio(){  // play the real recording, sped up, so the demo can hear the visit
   const a=$('visitAudio'), vn=$('visitPick')&&$('visitPick').value;
   stopAudio(); a.removeAttribute('src');
   if(!vn) return;  // planned/today has no recording
   a.src=BASE+'/patients/'+PID+'/visits/'+vn+'/audio';
+  a.preservesPitch=a.mozPreservesPitch=a.webkitPreservesPitch=true;  // natural voice, just faster
   a.playbackRate=Math.min(AUDIO_MAX_RATE, Number($('speed').value)||AUDIO_MAX_RATE);
   a.onerror=()=>{};  // no audio for this visit → silently fall back to the tick timer
   a.play().catch(()=>{});
@@ -608,10 +609,8 @@ function addFollow(d){
   el.innerHTML=`<span class="mk">${d.discussed?'✓':'!'}</span><div style="flex:1"><div class="txt">${d.text}</div><div class="why">${d.why||''}</div></div>${d.discussed?'':'<span class="tagg">CARE GAP</span>'}`;
   $('planMount').appendChild(el);
 }
-function tickTimer(){ // when the recording is playing, mirror its position so the phone clock
-  const a=$('visitAudio');  // exactly tracks the real appointment length; else advance by SPEED
-  if(a && a.src && !a.paused && a.currentTime>0) secs=Math.floor(a.currentTime);
-  else secs+=Math.max(1,Math.round(Number($('speed').value)||1));
+function tickTimer(){ // phone clock advances in visit-time (× SPEED), tracking the reasoning progress
+  secs+=Math.max(1,Math.round(Number($('speed').value)||1));
   const m=Math.floor(secs/60),s=secs%60;$('mTimer').textContent=`${m}:${s<10?'0':''}${s}`;}
 
 /* ---- backend-event adapters (map the backend contract onto the UI panels) ---- */
@@ -711,6 +710,9 @@ function play(){
   on('screener_suggested',addScreenerOrder);  // renders in the Orders tab (opt-in)
   on('longitudinal_narrative',d=>addStep({phase:'post',message:d.text||''}));
   on('error',d=>addStep({phase:'gap',message:'error: '+(d.message||'')}));
+  on('visit_analyzing',()=>{ // live reasoning finished; stop "recording" while the note is written
+    clearInterval(timer); stopAudio(); setRecUI('done');
+    $('recLabel').textContent='Analyzing visit…'; $('recHint').textContent='Analyzing — drafting the note'; });
   on('visit_complete',()=>{ ended=true; clearInterval(timer); stopAudio(); setRecUI('done'); if(es)es.close(); });
   on('end',()=>{ ended=true; clearInterval(timer); stopAudio(); setRecUI('done'); if(es)es.close(); });  // mock server terminator
   // trigger the backend visit (stream-first). No-op for the offline mock server, which replays on connect.
