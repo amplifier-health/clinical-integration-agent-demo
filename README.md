@@ -49,10 +49,10 @@ The agent works across the three stages of an encounter, and closes a longitudin
         mobile voice-signals · clinical note (orders / literature) · reasoning view
 ```
 
-Every stage emits **typed, versioned events** onto one bus, streamed over SSE. Each Abridge-style surface is just a filtered view of that one stream. The reasoner and the post-visit agent share **one Claude conversation** for the whole visit, so the final analysis is done by an agent that watched the entire encounter, and reasons over the *full* voice-biomarker object (condition signals + 18 wellness dimensions + speech prosody) — translating it into qualitative clinical language, never raw scores.
+Every stage emits **typed, versioned events** onto one bus, streamed over SSE. Each scribe-application surface is just a filtered view of that one stream. The reasoner and the post-visit agent share **one Claude conversation** for the whole visit, so the final analysis is done by an agent that watched the entire encounter, and reasons over the *full* voice-biomarker object (condition signals + 18 wellness dimensions + speech prosody) — translating it into qualitative clinical language, never raw scores.
 
 - **Backend:** Python, FastAPI, httpx, Anthropic SDK (Claude Opus 4.8), pydantic. faster-whisper + pydub for the live-audio path (ffmpeg required for non-WAV).
-- **Frontend:** a self-contained Abridge-style clinician UI (`mock_agent/viewer.html`) that speaks the backend's event contract directly — no adapter.
+- **Frontend:** a self-contained Scribe Application-style clinician UI (`mock_agent/viewer.html`) that speaks the backend's event contract directly — no adapter.
 
 ---
 

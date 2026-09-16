@@ -1,6 +1,6 @@
 # Clinical Integration Agent — Architecture & Flow Spec (v0)
 
-Strawman for the Abridge-integration demo. Decisions marked **[REC]** are my
+Strawman for the scribe-application integration demo. Decisions marked **[REC]** are my
 recommendation; **[OPEN]** needs a call. Built to be shared with the backend owner.
 
 ---
@@ -8,10 +8,10 @@ recommendation; **[OPEN]** needs a call. Built to be shared with the backend own
 ## 1. What we're building
 
 A voice-biomarker **integration agent** that sits between a live ambient recording
-(Abridge-style) and the clinician-facing UI. As the encounter is recorded, the agent
+(scribe-application-style) and the clinician-facing UI. As the encounter is recorded, the agent
 turns rolling audio into biomarker signals, reasons over them together with the
 patient chart and live transcript, and pushes **typed events** to the UI that populate
-Abridge's existing surfaces: *Suggested discussion topics* (mobile), the *Note*,
+the scribe application's existing surfaces: *Suggested discussion topics* (mobile), the *Note*,
 *Flowsheets*, and the *Abridge AI* chat panel. A separate **Reasoning tab** renders the
 agent's internal work live.
 
@@ -24,7 +24,7 @@ integration layer.
 ## 2. The core design idea: one event bus, many views
 
 There is exactly **one outbound stream** of typed events from the agent to the UI.
-Every Abridge surface — and the Reasoning tab — is just a **filtered view** of that
+Every scribe-application surface — and the Reasoning tab — is just a **filtered view** of that
 stream. This is what makes the demo coherent and avoids "intermittent API calls."
 
 ```
@@ -98,7 +98,7 @@ Heavier, mostly non-latency-critical reasoning:
    the gap-list signals → `trial.match` events into the Abridge AI panel. The point is
    trials for things that were *not* the visit's focus (what the doctor might miss).
 4. **Note integration**: append structured addenda with **provenance** (voice quote +
-   timestamp), mirroring Abridge's "Ambient Source" pattern.
+   timestamp), mirroring the scribe application's "Ambient Source" pattern.
 
 ---
 
@@ -124,7 +124,7 @@ risk. Keep the **LLM reasoning and the MCP trial call live** (they're fast and a
 
 1. **Flowsheet auto-population** (screenshot 1): map biomarker outputs to structured
    flowsheet rows with the ambient-source waveform icon + the triggering quote. Highest
-   visual payoff and it matches an existing Abridge element exactly.
+   visual payoff and it matches an existing scribe-application element exactly.
 2. **Provenance links**: every suggestion carries the audio moment + signal that caused
    it ("tap to see why") — mirrors the "Ambient Source" quote card.
 3. **Explainable chat**: wire the reasoning into the **Abridge AI** panel so the clinician
